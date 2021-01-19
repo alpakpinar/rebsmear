@@ -1,50 +1,66 @@
-from functools import partial
+from dataclasses import dataclass
 import ROOT as r
 r.gSystem.Load('libRooFit')
 import numpy as np
-import uproot
+
 
 @dataclass(frozen=True)
 class Jet():
     pt: float
     eta: float
     phi: float
-    px: float
-    py: float
-    pz: float
+    px: float = 0
+    py: float = 0
+    pz: float = 0
 
     def __post_init__(self):
-        self.px = np.cos(self.phi) * self.pt
-        self.py = np.sin(self.phi) * self.pt
-        self.pz = np.sinh(self.eta) * self.pt
+        object.__setattr__(self, 'px', np.cos(self.phi) * self.pt)
+        object.__setattr__(self, 'py', np.sin(self.phi) * self.pt)
+        object.__setattr__(self, 'pz', np.sinh(self.eta) * self.pt)
 
 
 class NamingMixin():
 
     @classmethod
-    def _name_jet_momentum_pdf(direction, index):
+    def _name_jet_momentum_pdf(self,direction, index):
         return f"momentum_pdf_{direction}_{index}"
 
     @classmethod
-    def _name_gen_momentum_var(direction, index):
+    def _name_gen_momentum_var(self,direction, index):
         return f"gen_{direction}_{index}"
     
     @classmethod
-    def _name_reco_momentum_var(direction, index):
+    def _name_reco_momentum_var(self,direction, index):
         return f"reco_{direction}_{index}"
 
     @classmethod
-    def _name_jet_resolution_var(direction, index):
+    def _name_jet_resolution_var(self,direction, index):
         return f"sigma_{direction}_{index}"
 
     @classmethod
-    def _name_partial_gen_htmiss_variable(direction):
+    def _name_partial_gen_htmiss_variable(self,direction):
         return f"gen_htmiss_{direction}"
     
     @classmethod
-    def _name_total_gen_htmiss_variable():
+    def _name_total_gen_htmiss_variable(self):
         return f"gen_htmiss_pt"
 
+    def _name_combined_momentum_pdf(self):
+        return f"momentum_pdf_total"
+
+    def _name_likelihood(self):
+        return "likelihood"
+
+    
+    def _name_total_prior_pdf(self):
+        return 'total_prior_pdf'
+
+
+def make_RooArgList(items):
+    l = r.RooArgList()
+    for item in items:
+        l.add(item)
+    return l
 
 class RebalanceWSFactory(NamingMixin):
     '''
@@ -62,6 +78,9 @@ class RebalanceWSFactory(NamingMixin):
         self.ws = r.RooWorkspace()
         self._wsimp = getattr(self.ws, 'import')
         self._directions = 'px','py'
+
+    def get_ws(self):
+        return self.ws
 
     def get_jet(self, index):
         return self.jets[index]
@@ -84,12 +103,13 @@ class RebalanceWSFactory(NamingMixin):
 
         expression = '*'.join(partial_pdf_names)
         likelihood_name = self._name_likelihood()
-        r.RooGenericPdf(
+        likelihood = r.RooGenericPdf(
             likelihood_name,
             likelihood_name,
             expression,
             r.RooArgList(*partial_pdfs)
         )
+        self._wsimp(likelihood)
 
     def _build_gen_htmiss_variables(self):
         for direction in self._directions:
@@ -98,12 +118,12 @@ class RebalanceWSFactory(NamingMixin):
 
     def _build_total_gen_htmiss_variable(self):
         partial_htmiss_variable_names = [self._name_partial_gen_htmiss_variable(direction) for direction in self._directions]
-        partial_htmiss_variables = [self.ws.var(x) for x in partial_htmiss_variable_names]
-        expression = f"sqrt({'+'.join(['{X}**2' for X in partial_htmiss_variable_names])}"
+        partial_htmiss_variable = [self.ws.function(x) for x in partial_htmiss_variable_names]
+        expression = f"sqrt({'+'.join([f'{X}**2' for X in partial_htmiss_variable_names])})"
         total_htmiss_variable = r.RooFormulaVar(
             self._name_total_gen_htmiss_variable(),
             expression,
-            r.RooArgList(*partial_htmiss_variables)
+            make_RooArgList(partial_htmiss_variable)
         )
         self._wsimp(total_htmiss_variable)
 
@@ -115,14 +135,14 @@ class RebalanceWSFactory(NamingMixin):
         partial_htmiss_variable = r.RooFormulaVar(
             htmiss_variable_name,
             expression,
-            r.RooArgList(*momentum_variables)
+            make_RooArgList(momentum_variables)
         )
         self._wsimp(partial_htmiss_variable)
 
-    def _name_total_gen_htmiss_prior_pdf():
+    def _name_total_gen_htmiss_prior_pdf(self):
         return 'gen_htmiss_prior_pdf'
     
-    def _name_total_gen_htmiss_prior_slope():
+    def _name_total_gen_htmiss_prior_slope(self):
         return 'gen_htmiss_prior_slope'
 
     def _build_gen_htmiss_prior(self):
@@ -137,15 +157,14 @@ class RebalanceWSFactory(NamingMixin):
         self._wsimp(slope_variable)
 
         prior_pdf_name = self._name_total_gen_htmiss_prior_pdf()
+        htmiss_variable = self.ws.function(self._name_total_gen_htmiss_variable())
         prior_pdf = r.RooExponential(
             prior_pdf_name,
-            self.ws.function(self._name_total_gen_htmiss_variable()),
+            prior_pdf_name,
+            htmiss_variable,
             slope_variable
         )
         self._wsimp(prior_pdf)
-
-    def _name_total_prior_pdf(self):
-        return 'total_prior_pdf'
 
     def _build_total_prior(self):
         pdf_name = self._name_total_prior_pdf()
@@ -161,9 +180,8 @@ class RebalanceWSFactory(NamingMixin):
         self._wsimp(total_prior_pdf)
 
     def _build_priors(self):
-        self._build_gen_htmiss_variables
+        self._build_gen_htmiss_variables()
         self._build_gen_htmiss_prior()
-        self._build_total_prior()
         self._build_total_prior()
 
     def _build_all_jets(self):
@@ -187,7 +205,7 @@ class RebalanceWSFactory(NamingMixin):
         '''
         Defines the product PDF of all individual jet PDFs.
         '''
-        individual_pdf_names = self._expand_naming(self.name_jet_momentum_pdf)
+        individual_pdf_names = self._expand_naming(self._name_jet_momentum_pdf)
 
         individual_pdfs = [self.ws.function(name) for name in individual_pdf_names]
 
@@ -197,7 +215,7 @@ class RebalanceWSFactory(NamingMixin):
                     pdf_name,
                     pdf_name,
                     expression,
-                    r.RooArgList(*individual_pdfs)
+                    make_RooArgList(individual_pdfs)
                     )
 
         self._wsimp(combined_pdf)
@@ -223,7 +241,7 @@ class RebalanceWSFactory(NamingMixin):
         self._wsimp(gen_var)
 
 
-        name_reco_var = self._name_reco_momentum_var(direction. index)
+        name_reco_var = self._name_reco_momentum_var(direction, index)
         reco_var = r.RooRealVar(
                                 name_reco_var,
                                 name_reco_var,
@@ -251,6 +269,7 @@ class RebalanceWSFactory(NamingMixin):
                                  resolution_name, 
                                  sigma, 
                                  sigma)
+        self._wsimp(resolution_var)
         
         pdf_name = self._name_jet_momentum_pdf(direction, index)
         momentum_pdf = r.RooGaussian(
@@ -262,7 +281,6 @@ class RebalanceWSFactory(NamingMixin):
                                     )
 
         self._wsimp(momentum_pdf)
-        self._wsimp(resolution_var)
 
     def _build_single_jet(self, index):
         '''
