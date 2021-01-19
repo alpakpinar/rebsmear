@@ -55,6 +55,8 @@ class NamingMixin():
     def _name_total_prior_pdf(self):
         return 'total_prior_pdf'
 
+    def _name_metadata_njets_variable(self):
+        return 'njets'
 
 def make_RooArgList(items):
     l = r.RooArgList()
@@ -89,10 +91,41 @@ class RebalanceWSFactory(NamingMixin):
         '''
         Defines all ingredients for the fit model.
         '''
+        self._build_metadata()
         self._build_all_jets()
         self._build_combined_momentum_pdf()
         self._build_priors()
         self._build_likelihood()
+        self._build_negative_log_likelihood()
+
+    def _build_metadata(self):
+        self._build_metadata_njets()
+
+    def _build_metadata_njets(self):
+        njets_variable_name = self._name_metadata_njets_variable()
+        njets_variable = r.RooRealVar(
+                                      njets_variable_name,
+                                      njets_variable_name,
+                                      self.njets
+                                      )
+        self._wsimp(njets_variable)
+
+    def _name_negative_log_likelihood(self):
+        return "nll"
+
+    def _build_negative_log_likelihood(self):
+        likelihood_name = self._name_likelihood()
+        likelihood_function = self.ws.function(likelihood_name)
+        nll_name = self._name_negative_log_likelihood()
+        expression = f"- log ({likelihood_name})"
+        nll = r.RooGenericPdf(
+            nll_name,
+            nll_name,
+            expression,
+            r.RooArgList(likelihood_function)
+        )
+        self._wsimp(nll)
+
 
     def _build_likelihood(self):
         partial_pdf_names = [
@@ -150,9 +183,7 @@ class RebalanceWSFactory(NamingMixin):
         slope_variable = r.RooRealVar(
             slope_name,
             slope_name,
-            -0.01,
-            -0.01,
-            -0.01
+            -0.1,
         )
         self._wsimp(slope_variable)
 
@@ -227,7 +258,7 @@ class RebalanceWSFactory(NamingMixin):
         jet = self.get_jet(index)
 
         start = getattr(jet, direction)
-        lim = min(2*abs(start), 100)
+        lim = max(2*abs(start), 100)
 
         args = [start, -lim, lim]
 
@@ -245,7 +276,7 @@ class RebalanceWSFactory(NamingMixin):
         reco_var = r.RooRealVar(
                                 name_reco_var,
                                 name_reco_var,
-                                *args
+                                start
                                 )
         self._wsimp(reco_var)
 
@@ -267,8 +298,8 @@ class RebalanceWSFactory(NamingMixin):
         resolution_var = r.RooRealVar(
                                  resolution_name,
                                  resolution_name, 
-                                 sigma, 
-                                 sigma)
+                                 sigma
+                                 )
         self._wsimp(resolution_var)
         
         pdf_name = self._name_jet_momentum_pdf(direction, index)
