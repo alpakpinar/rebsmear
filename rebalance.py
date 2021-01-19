@@ -21,27 +21,21 @@ class Jet():
 
 class NamingMixin():
 
-    @classmethod
     def _name_jet_momentum_pdf(self,direction, index):
         return f"momentum_pdf_{direction}_{index}"
 
-    @classmethod
     def _name_gen_momentum_var(self,direction, index):
         return f"gen_{direction}_{index}"
     
-    @classmethod
     def _name_reco_momentum_var(self,direction, index):
         return f"reco_{direction}_{index}"
 
-    @classmethod
     def _name_jet_resolution_var(self,direction, index):
         return f"sigma_{direction}_{index}"
 
-    @classmethod
     def _name_partial_gen_htmiss_variable(self,direction):
         return f"gen_htmiss_{direction}"
     
-    @classmethod
     def _name_total_gen_htmiss_variable(self):
         return f"gen_htmiss_pt"
 
@@ -51,7 +45,6 @@ class NamingMixin():
     def _name_likelihood(self):
         return "likelihood"
 
-    
     def _name_total_prior_pdf(self):
         return 'total_prior_pdf'
 
