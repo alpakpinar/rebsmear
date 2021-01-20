@@ -26,7 +26,7 @@ class NamingMixin():
 
     def _name_gen_momentum_var(self,direction, index):
         return f"gen_{direction}_{index}"
-    
+
     def _name_reco_momentum_var(self,direction, index):
         return f"reco_{direction}_{index}"
 
@@ -35,7 +35,7 @@ class NamingMixin():
 
     def _name_partial_gen_htmiss_variable(self,direction):
         return f"gen_htmiss_{direction}"
-    
+
     def _name_total_gen_htmiss_variable(self):
         return f"gen_htmiss_pt"
 
@@ -57,6 +57,55 @@ def make_RooArgList(items):
         l.add(item)
     return l
 
+
+class HistoSF2D():
+    def __init__(self, histogram):
+        assert(histogram)
+        self._histogram = histogram
+        self._init_boundaries()
+
+    def _init_boundaries(self):
+        bin_bottom_left = self._histogram.GetBin(1,1)
+        nbins_x = self._histogram.GetNbinsX()
+        nbins_y = self._histogram.GetNbinsY()
+        self._xmin = self._histogram.GetXaxis().GetBinCenter(1)
+        self._xmax = self._histogram.GetXaxis().GetBinCenter(nbins_x-1)
+        self._ymin = self._histogram.GetYaxis().GetBinCenter(1)
+        self._ymax = self._histogram.GetYaxis().GetBinCenter(nbins_y-1)
+
+
+    def _apply_limit(self, value, low, high):
+        return max(low, min(value, high))
+
+    def evaluate(self,x,y):
+        x = self._apply_limit(x, self._xmin, self._xmax)
+        y = self._apply_limit(y, self._ymin, self._ymax)
+
+        print(self._xmin, self._xmax, x)
+        bin_id = self._histogram.FindBin(x,y)
+        return self._histogram.GetBinContent(bin_id)
+
+    def __call__(self,x,y):
+        return self.evaluate(x,y)
+
+class JERLookup():
+    def __init__(self, filepath, histogram_name):
+        f = r.TFile(filepath)
+        if not f:
+            raise IOError(f"Could not open file: '{filepath}'")
+
+        h = f.Get(histogram_name)
+        if not f:
+            raise IOError(f"Could not load histogram: '{histogram_name}'")
+
+        h.SetDirectory(0)
+        self._evaluator = HistoSF2D(h)
+
+    def get_jer(self, pt, eta):
+        return self._evaluator(pt, np.abs(eta))
+
+
+
 class RebalanceWSFactory(NamingMixin):
     '''
     Factory class for a RooWorkspace used for rebalancing fits.
@@ -72,7 +121,11 @@ class RebalanceWSFactory(NamingMixin):
         self.njets = len(jets)
         self.ws = r.RooWorkspace()
         self._wsimp = getattr(self.ws, 'import')
-        self._directions = 'px','py'
+        self._directions = 'px', 'py'
+        self._jer_evaluator = None
+
+    def set_jer_source(self,filepath, histogram_name):
+        self._jer_evaluator = JERLookup(filepath, histogram_name)
 
     def get_ws(self):
         return self.ws
@@ -167,7 +220,7 @@ class RebalanceWSFactory(NamingMixin):
 
     def _name_total_gen_htmiss_prior_pdf(self):
         return 'gen_htmiss_prior_pdf'
-    
+
     def _name_total_gen_htmiss_prior_slope(self):
         return 'gen_htmiss_prior_slope'
 
@@ -277,9 +330,12 @@ class RebalanceWSFactory(NamingMixin):
 
     def _resolution(self, index, direction):
         '''
-        The jet resolution in a given direction for given jet index.
+        The jet resolution in a given direction for given jet index in GeV.
         '''
-        return 0.1 * getattr(self.get_jet(index), direction)
+        jet = self.get_jet(index)
+        sigma = self._jer_evaluator.get_jer(jet.pt, jet.eta) * jet.pt
+
+        return sigma * getattr(jet, direction)
 
     def _build_single_jet_momentum_pdf(self, gen_var, reco_var, direction, index):
         '''
@@ -290,17 +346,17 @@ class RebalanceWSFactory(NamingMixin):
         resolution_name = self._name_jet_resolution_var(direction, index)
         resolution_var = r.RooRealVar(
                                  resolution_name,
-                                 resolution_name, 
+                                 resolution_name,
                                  sigma
                                  )
         self._wsimp(resolution_var)
-        
+
         pdf_name = self._name_jet_momentum_pdf(direction, index)
         momentum_pdf = r.RooGaussian(
                                     pdf_name,
                                     pdf_name,
-                                    reco_var, 
-                                    gen_var, 
+                                    reco_var,
+                                    gen_var,
                                     resolution_var
                                     )
 
