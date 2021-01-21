@@ -365,23 +365,20 @@ class RebalanceWSFactory(NamingMixin):
 
         # Get the (already saved to WS) HTmiss and HT variables
         gen_ht = self.ws.function(self._name_total_gen_ht_variable())
-        print(gen_ht)
+        gen_htmiss = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt')).evaluate()
 
-        # htmiss_variable = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt'))
         htmiss_variable = r.RooRealVar(
             self._name_partial_gen_htmiss_variable(direction='pt'),
             self._name_partial_gen_htmiss_variable(direction='pt'),
-            0, 1500
+            gen_htmiss
         )
 
-        print(htmiss_variable)
         # For the event at hand, do the following:
         # 1. Get the histogram corresponding to the HT bin, based on GEN-HT of event
         # 2. Convert it into a RooDataHist and finally a RooHistPDF
         # 3. Save the RooHistPDF to the workspace
 
         ht_bin_for_event = self._figure_out_ht_bin(gen_ht.evaluate())
-        print(ht_bin_for_event)
 
         # TODO: Year implementation?
         # For the time being, use 2017 histograms
@@ -398,8 +395,6 @@ class RebalanceWSFactory(NamingMixin):
                             r.RooArgList(htmiss_variable),
                             hist
                         )
-
-            print(datahist)
 
             prior_pdf_name = self._name_total_gen_htmiss_prior_pdf()
 
