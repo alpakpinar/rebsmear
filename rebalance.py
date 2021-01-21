@@ -36,6 +36,9 @@ class NamingMixin():
     def _name_partial_gen_htmiss_variable(self,direction):
         return f"gen_htmiss_{direction}"
 
+    def _name_total_gen_ht_variable(self):
+        return "gen_ht"
+
     def _name_total_gen_htmiss_variable(self):
         return f"gen_htmiss_pt"
 
@@ -50,6 +53,7 @@ class NamingMixin():
 
     def _name_metadata_njets_variable(self):
         return 'njets'
+
 
 def make_RooArgList(items):
     l = r.RooArgList()
@@ -188,6 +192,36 @@ class RebalanceWSFactory(NamingMixin):
         )
         self._wsimp(likelihood)
 
+    def _build_gen_ht_variable(self):
+        expression_parts = []
+        variables = []
+        for index in range(self.njets):
+            if self._directions == ('pt','phi'):
+                name = self._name_gen_momentum_var('pt', index)
+                expression_parts.append(name)
+
+                var = self.ws.var(name)
+                variables.append(var)
+            else:
+                name_x = self._name_gen_momentum_var('px', index)
+                name_y = self._name_gen_momentum_var('py', index)
+                expression_parts.append(f"sqrt({name_x}**2 + {name_y}**2)")
+
+                var_x = self.ws.var(name_x)
+                var_y = self.ws.var(name_y)
+                variables.append(var_x)
+                variables.append(var_y)
+
+        expression = '+'.join(expression_parts)
+        name_ht = self._name_total_gen_ht_variable()
+        ht_variable = r.RooFormulaVar(
+            name_ht,
+            expression,
+            make_RooArgList(variables)
+        )
+        self._wsimp(ht_variable)
+
+
     def _build_gen_htmiss_variables(self):
         if self._directions==('pt','phi'):
             self._build_gen_htmiss_xy_variable_from_pt_phi()
@@ -271,14 +305,6 @@ class RebalanceWSFactory(NamingMixin):
         )
         self._wsimp(htmiss_pt_variable)
 
-        # htmiss_phi_variable = r.RooFormulaVar(
-        #     self._name_partial_gen_htmiss_variable("phi"),
-        #     'arctan({name_py} / {name_px})',
-        #     r.RooArgList(htmiss_px_variable, htmiss_py_variable)
-        # )
-        # self._wsimp(htmiss_phi_variable)
-
-
 
     def _build_total_gen_htmiss_variable(self):
         partial_htmiss_variable_names = [self._name_partial_gen_htmiss_variable(direction) for direction in self._directions]
@@ -342,6 +368,7 @@ class RebalanceWSFactory(NamingMixin):
         self._wsimp(total_prior_pdf)
 
     def _build_priors(self):
+        self._build_gen_ht_variable()
         self._build_gen_htmiss_variables()
         self._build_gen_htmiss_prior()
         self._build_total_prior()
