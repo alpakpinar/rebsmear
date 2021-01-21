@@ -30,14 +30,34 @@ def extract_values(ws, tier):
 
     return x, y, htx, hty
 
+def extract_values_pt_phi(ws, tier):
+    pt,phi = [], []
+    htx, hty = [], []
+
+    for i in range(int(ws.var("njets").getValV())):
+        pt.append(ws.var(f"{tier}_pt_{i}").getValV())
+        phi.append(ws.var(f"{tier}_phi_{i}").getValV())
+
+    pt = np.array(pt)
+    phi = np.array(phi)
+    x = pt * np.cos(phi)
+    y = pt * np.sin(phi)
+    htx = -np.sum(x)
+    hty = -np.sum(y)
+
+
+    return x, y, htx, hty
+
 def plot_plane(ws, tag):
     plt.gcf().clf()
     fig = plt.gcf()
     ax = plt.gca()
     
     # Reco
-    reco_x, reco_y, reco_htx, reco_hty = extract_values(ws, "reco")
-    gen_x, gen_y, gen_htx, gen_hty = extract_values(ws, "gen")
+    reco_x, reco_y, reco_htx, reco_hty = extract_values_pt_phi(ws, "reco")
+    gen_x, gen_y, gen_htx, gen_hty = extract_values_pt_phi(ws, "gen")
+
+
 
     for i in range(len(reco_x)):
         ax.arrow(
@@ -68,9 +88,9 @@ def plot_plane(ws, tag):
              dy=reco_hty,
              head_width=10,
              color='navy',
-             width=5,
+             width=10,
              alpha=0.5,
-             fill=False,
+            #  fill=False,
              label=f'Reco $H_{{T}}^{{miss}}$ ({reco_ht:.0f} GeV)')
     ax.arrow(
              x=0,
@@ -79,8 +99,9 @@ def plot_plane(ws, tag):
              dy=gen_hty,
              head_width=10,
              color='crimson',
-             width=5,
-             fill=False,
+             width=10,
+             alpha=0.5,
+            #  fill=False,
              label=f'Gen $H_{{T}}^{{miss}}$ ({gen_ht:.0f} GeV)')
 
 
@@ -97,9 +118,10 @@ def main():
     for event in range(10):
         jets = read_jets(event)
         rbwsfac = RebalanceWSFactory(jets)
+        rbwsfac.set_jer_source("./input/jer.root","jer_data")
         rbwsfac.build()
         ws = rbwsfac.get_ws()
-        # ws.Print("v")
+        ws.Print("v")
 
         # for i in range(int(ws.var("njets").getValV())):
         #     print(i, jets[i].px, ws.var(f"gen_px_{i}").getValV(), ws.var(f"reco_px_{i}").getValV())
@@ -108,11 +130,13 @@ def main():
         #     print(i, jets[i].py, ws.var(f"gen_py_{i}").getValV(), ws.var(f"reco_py_{i}").getValV())
 
 
-
+        f=r.TFile(f"./output/ws_{event}.root","RECREATE")
         plot_plane(ws, tag=f"{event}_before")
+        ws.Write('before')
         m = r.RooMinimizer(ws.function("nll"))
         m.migrad()
+        ws.Write('after')
         plot_plane(ws, tag=f"{event}_after")
-
+    return ws
 if __name__ == "__main__":
-    main()
+    ws = main()
