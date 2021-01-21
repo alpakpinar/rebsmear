@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 
 
 def read_jets(event):
-    f = uproot.open("tree_22.root")
+    f = uproot.open("input/tree_22.root")
     t = f['Events']
     n = event
     

@@ -3,7 +3,6 @@ import ROOT as r
 r.gSystem.Load('libRooFit')
 import numpy as np
 
-
 @dataclass(frozen=True)
 class Jet():
     pt: float
@@ -335,24 +334,83 @@ class RebalanceWSFactory(NamingMixin):
     def _name_total_gen_htmiss_prior_slope(self):
         return 'gen_htmiss_prior_slope'
 
-    def _build_gen_htmiss_prior(self):
-        slope_name = self._name_total_gen_htmiss_prior_slope()
-        slope_variable = r.RooRealVar(
-            slope_name,
-            slope_name,
-            -0.05,
-        )
-        self._wsimp(slope_variable)
+    def _get_gen_htmiss_prior_file(self):
+        rfile = './input/htmiss_prior.root'
+        return r.TFile(rfile)
 
-        prior_pdf_name = self._name_total_gen_htmiss_prior_pdf()
-        htmiss_variable = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt'))
-        prior_pdf = r.RooExponential(
-            prior_pdf_name,
-            prior_pdf_name,
-            htmiss_variable,
-            slope_variable
+    def _figure_out_ht_bin(self, gen_ht):
+        '''Given the GEN-HT of the event, figure out which HT bin it corresponds to.'''
+        prior_ht_bins = [
+            '0_to_200',
+            '200_to_400',
+            '400_to_600',
+            '600_to_800',
+            '800_to_1000',
+            '1000_to_2000',
+            '2000_to_5000',
+        ]
+        for ht_bin in prior_ht_bins:
+            ht_bin_split = ht_bin.split('_')
+            min_ht, max_ht = int(ht_bin_split[0]), int(ht_bin_split[-1]) 
+
+            if (gen_ht >= min_ht) and (gen_ht <= max_ht):
+                return ht_bin
+
+        raise RuntimeError(f'Could not figure out the HT bin for HT: {gen_ht:.3f}')
+
+    def _build_gen_htmiss_prior(self):
+        '''Build gen HTmiss prior, extracted from the source file.'''
+        # Get the source file for prior distributions
+        prior_input_file = self._get_gen_htmiss_prior_file()
+
+        # Get the (already saved to WS) HTmiss and HT variables
+        gen_ht = self.ws.function(self._name_total_gen_ht_variable())
+        print(gen_ht)
+
+        # htmiss_variable = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt'))
+        htmiss_variable = r.RooRealVar(
+            self._name_partial_gen_htmiss_variable(direction='pt'),
+            self._name_partial_gen_htmiss_variable(direction='pt'),
+            0, 1500
         )
-        self._wsimp(prior_pdf)
+
+        print(htmiss_variable)
+        # For the event at hand, do the following:
+        # 1. Get the histogram corresponding to the HT bin, based on GEN-HT of event
+        # 2. Convert it into a RooDataHist and finally a RooHistPDF
+        # 3. Save the RooHistPDF to the workspace
+
+        ht_bin_for_event = self._figure_out_ht_bin(gen_ht.evaluate())
+        print(ht_bin_for_event)
+
+        # TODO: Year implementation?
+        # For the time being, use 2017 histograms
+        for key in prior_input_file.GetListOfKeys():
+            hist = key.ReadObj()
+            histname = hist.GetName()
+
+            if '2018' in histname:
+                continue
+            if ht_bin_for_event not in histname:
+                continue
+
+            datahist = r.RooDataHist(histname, histname,
+                            r.RooArgList(htmiss_variable),
+                            hist
+                        )
+
+            print(datahist)
+
+            prior_pdf_name = self._name_total_gen_htmiss_prior_pdf()
+
+            prior_pdf = r.RooHistPdf(prior_pdf_name,
+                            prior_pdf_name,
+                            r.RooArgSet(htmiss_variable),
+                            datahist
+                        )
+
+            # Save the PDF into workspace
+            self._wsimp(prior_pdf)
 
     def _build_total_prior(self):
         pdf_name = self._name_total_prior_pdf()
