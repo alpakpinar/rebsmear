@@ -60,28 +60,28 @@ def plot_plane(ws, tag):
 
 
     for i in range(len(reco_x)):
-        ax.arrow(
+        arr_reco_jet = ax.arrow(
                 x=0,
                 y=0,
                 dx=reco_x[i],
                 dy=reco_y[i],
                 head_width=10,
                 color='navy',
-                label='Reco jet' if i==0 else None
+                # label='Reco jet' if i==0 else None
                 )
-        ax.arrow(   
+        arr_gen_jet = ax.arrow(   
                  x=0,
                  y=0,
                  dx=gen_x[i],
                  dy=gen_y[i],
                  head_width=10,
                  color='crimson',
-                 label='Gen jet' if i==0 else None
+                #  label='Gen jet' if i==0 else None
                  )
     
     reco_ht = np.hypot(reco_htx, reco_hty)
     gen_ht = np.hypot(gen_htx, gen_hty)
-    ax.arrow(
+    arr_reco_ht = ax.arrow(
              x=0,
              y=0,
              dx=reco_htx,
@@ -92,7 +92,7 @@ def plot_plane(ws, tag):
              alpha=0.5,
             #  fill=False,
              label=f'Reco $H_{{T}}^{{miss}}$ ({reco_ht:.0f} GeV)')
-    ax.arrow(
+    arr_gen_ht = ax.arrow(
              x=0,
              y=0,
              dx=gen_htx,
@@ -104,12 +104,15 @@ def plot_plane(ws, tag):
             #  fill=False,
              label=f'Gen $H_{{T}}^{{miss}}$ ({gen_ht:.0f} GeV)')
 
-
     axis_maximum = 1.2*max([abs(x) for x in (reco_x + reco_y + [reco_ht])])
     ax.set_ylim(-axis_maximum, axis_maximum)
     ax.set_xlim(-axis_maximum, axis_maximum)
     ax.set_title(f"{tag}, NLL = {ws.function('nll').getValV():.2f}")
-    ax.legend()
+    ax.legend([arr_reco_jet, arr_gen_jet, arr_reco_ht, arr_gen_ht], ['RECO jet', 'GEN jet', f'RECO $H_{{T}}^{{miss}}$ ({reco_ht:.0f} GeV)', f'GEN $H_{{T}}^{{miss}}$ ({gen_ht:.0f} GeV)'])
+
+    ax.set_xlabel(r'$p_x \ (GeV)$')
+    ax.set_ylabel(r'$p_y \ (GeV)$')
+
     fig.savefig(f"output/test_{tag}.png", dpi=300)
 
 
