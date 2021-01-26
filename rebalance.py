@@ -341,12 +341,12 @@ class RebalanceWSFactory(NamingMixin):
     def _figure_out_ht_bin(self, gen_ht):
         '''Given the GEN-HT of the event, figure out which HT bin it corresponds to.'''
         prior_ht_bins = [
-            '0_to_200',
-            '200_to_400',
-            '400_to_600',
-            '600_to_800',
-            '800_to_1000',
-            '1000_to_2000',
+            '100_to_300',
+            '300_to_500',
+            '500_to_700',
+            '700_to_900',
+            '900_to_1300',
+            '1300_to_2000',
             '2000_to_5000',
         ]
         for ht_bin in prior_ht_bins:
@@ -403,6 +403,9 @@ class RebalanceWSFactory(NamingMixin):
                             r.RooArgSet(htmiss_variable),
                             datahist
                         )
+
+            # Quadratic interpolation
+            prior_pdf.setInterpolationOrder(2)
 
             # Save the PDF into workspace
             self._wsimp(prior_pdf)
