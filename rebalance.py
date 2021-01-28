@@ -335,7 +335,7 @@ class RebalanceWSFactory(NamingMixin):
         return 'gen_htmiss_prior_slope'
 
     def _get_gen_htmiss_prior_file(self):
-        rfile = './input/htmiss_prior.root'
+        rfile = './input/htmiss_fitted_prior.root'
         return r.TFile(rfile)
 
     def _figure_out_ht_bin(self, gen_ht):
@@ -405,7 +405,7 @@ class RebalanceWSFactory(NamingMixin):
                         )
 
             # Quadratic interpolation
-            prior_pdf.setInterpolationOrder(2)
+            prior_pdf.setInterpolationOrder(1)
 
             # Save the PDF into workspace
             self._wsimp(prior_pdf)

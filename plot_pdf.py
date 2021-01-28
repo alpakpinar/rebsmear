@@ -20,7 +20,7 @@ prior_ht_bins = [
 
 def main():
     # Input file for distributions
-    rfile = './input/htmiss_prior.root'
+    rfile = './input/htmiss_fitted_prior.root'
     f = r.TFile(rfile)
     
     htmiss_variable = r.RooRealVar('gen_htmiss_pt', 'gen_htmiss_pt', 0, 500)
@@ -34,7 +34,6 @@ def main():
         histname = hist.GetName()
 
         ht_bin = re.findall('\d+_to_\d+', histname)[0]
-        year = re.findall('201\d', histname)[0]
 
         datahist = r.RooDataHist('h_prior_pdf', 'h_prior_pdf', r.RooArgList(htmiss_variable), hist)
 
@@ -52,7 +51,7 @@ def main():
         htframe.SetMaximum(1e0)
         htframe.Draw()
 
-        outpath = pjoin(outdir, f'interpolated_prior_{ht_bin}_{year}.png')
+        outpath = pjoin(outdir, f'interpolated_prior_{ht_bin}.png')
         c.SaveAs(outpath)
 
 if __name__ == '__main__':
