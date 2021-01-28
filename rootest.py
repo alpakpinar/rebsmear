@@ -38,15 +38,18 @@ def main():
                 )
 
     print(f'Value of px: {px}')
-    print(f'Value of pxsq: {pxsq_var}')
+    print(f'Value of pxsq: {pxsq}')
+    print(f'Value of pxsq_var: {pxsq_var}')
     print(f'PDF: {pdf.getValV()}')
 
+    # Change the px value and see the impact on other variables/PDFs
     print('*'*20)
     print('Setting px=5')
     print('*'*20)
     px.setVal(5)
     print(f'Value of px: {px}')
-    print(f'Value of pxsq: {pxsq_var}')
+    print(f'Value of pxsq: {pxsq}')
+    print(f'Value of pxsq_var: {pxsq_var}')
     print(f'PDF: {pdf.getValV()}')
 
     # Plot the PDF and save figure
@@ -64,7 +67,9 @@ if __name__ == '__main__':
 # =============================
 # Value of px: RooRealVar::px = 2  L(0 - 100) 
 
-# Value of pxsq: RooRealVar::pxsqvar = 4 C  L(0 - 100) 
+# Value of pxsq: RooFormulaVar::pxsq[ actualVars=(px) formula="px**2" ] = 4
+
+# Value of pxsq_var: RooRealVar::pxsqvar = 4 C  L(0 - 100) 
 
 # PDF: 0.3
 # ********************
@@ -72,6 +77,8 @@ if __name__ == '__main__':
 # ********************
 # Value of px: RooRealVar::px = 5  L(0 - 100) 
 
-# Value of pxsq: RooRealVar::pxsqvar = 4 C  L(0 - 100) 
+# Value of pxsq: RooFormulaVar::pxsq[ actualVars=(px) formula="px**2" ] = 25
+
+# Value of pxsq_var: RooRealVar::pxsqvar = 4 C  L(0 - 100) 
 
 # PDF: 0.3
