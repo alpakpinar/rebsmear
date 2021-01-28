@@ -47,7 +47,11 @@ def main():
         prior_pdf.plotOn(htframe)
 
         c = r.TCanvas('prior_pdf', 'prior_pdf')
+        r.gPad.SetLogy(1)
+        htframe.SetMinimum(1e-10)
+        htframe.SetMaximum(1e0)
         htframe.Draw()
+
         outpath = pjoin(outdir, f'interpolated_prior_{ht_bin}_{year}.png')
         c.SaveAs(outpath)
 
