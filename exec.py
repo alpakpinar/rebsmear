@@ -132,6 +132,8 @@ def main():
     # Number of events to run over
     num_events = 10
 
+    f=r.TFile(f"./output/ws_all.root","RECREATE")
+
     for event in range(num_events):
         jets = read_jets(event)
         rbwsfac = RebalanceWSFactory(jets)
@@ -147,12 +149,12 @@ def main():
         #     print(i, jets[i].py, ws.var(f"gen_py_{i}").getValV(), ws.var(f"reco_py_{i}").getValV())
 
 
-        f=r.TFile(f"./output/ws_{event}.root","RECREATE")
         plot_plane(ws, tag=f"{event}_before")
-        ws.Write('before')
+        # ws.Write('before')
         m = r.RooMinimizer(ws.function("nll"))
         m.migrad()
-        ws.Write('after')
+        f.cd()
+        ws.Write(f'rebalanced_event_{event}')
         plot_plane(ws, tag=f"{event}_after")
 
     print('*'*20)
