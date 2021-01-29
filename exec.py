@@ -1,4 +1,5 @@
 import time
+import argparse
 import numpy as np
 from numpy.lib.function_base import extract
 import ROOT as r
@@ -7,10 +8,16 @@ from rebalance import Jet, RebalanceWSFactory
 import uproot
 from matplotlib import pyplot as plt
 
+def parse_cli():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('inpath', help='Path to the input ROOT file.')
+    parser.add_argument('--numevents', help='Number of events to run on. If not specified, will run on all events in the input file.')
+    parser.add_argument('--dry', help='Dry run. Runs over 10 events, do not specify at the same time with --numevents.', action='store_true')
+    args = parser.parse_args()
+    return args
 
-def read_jets(event):
-    f = uproot.open("input/tree_22.root")
-    t = f['Events']
+def read_jets(event, infile):
+    t = infile['Events']
     n = event
     
     pt, phi, eta = (t[f'Jet_{x}'].array(entrystart=n, entrystop=n+1)[0] for x in ['pt','phi','eta'])
@@ -129,13 +136,30 @@ def main():
     # Record the running time
     starttime = time.time()
 
+    args = parse_cli()
+    inpath = args.inpath
+
+    if not inpath:
+        raise RuntimeError('Please provide an input ROOT file.')
+
+    # Read the input file
+    infile = uproot.open(inpath)
+
     # Number of events to run over
-    num_events = 10
+    if args.numevents is not None:
+        numevents = args.numevents
+    # Test run
+    elif args.dry:
+        numevents = 10
+    else:
+        numevents = len(infile['Events'])
 
-    f=r.TFile(f"./output/ws_all.root","RECREATE")
+    print(f'INFO: Running on {numevents} events')
 
-    for event in range(num_events):
-        jets = read_jets(event)
+    f=r.TFile("./output/ws_all.root","RECREATE")
+
+    for event in range(numevents):
+        jets = read_jets(event, infile)
         rbwsfac = RebalanceWSFactory(jets)
         rbwsfac.set_jer_source("./input/jer.root","jer_data")
         rbwsfac.build()
@@ -161,8 +185,8 @@ def main():
     print('JOB INFO:')
     endtime = time.time()
     timeinterval = endtime - starttime
-    timeinterval_per_event = (endtime - starttime) / num_events
-    print(f'Ran over {num_events} events')
+    timeinterval_per_event = (endtime - starttime) / numevents
+    print(f'Ran over {numevents} events')
     print(f'Total running time: {timeinterval:.3f} s')
     print(f'Running time/event: {timeinterval_per_event:.3f} s')
     print('*'*20)
