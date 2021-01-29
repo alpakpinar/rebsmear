@@ -367,12 +367,6 @@ class RebalanceWSFactory(NamingMixin):
         gen_ht = self.ws.function(self._name_total_gen_ht_variable())
         gen_htmiss = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt')).evaluate()
 
-        htmiss_variable = r.RooRealVar(
-            self._name_partial_gen_htmiss_variable(direction='pt'),
-            self._name_partial_gen_htmiss_variable(direction='pt'),
-            gen_htmiss
-        )
-
         # For the event at hand, do the following:
         # 1. Get the histogram corresponding to the HT bin, based on GEN-HT of event
         # 2. Convert it into a RooDataHist and finally a RooHistPDF
@@ -391,8 +385,16 @@ class RebalanceWSFactory(NamingMixin):
             if ht_bin_for_event not in histname:
                 continue
 
+            htmiss_variable = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt'))
+
+            dummy_htmiss_variable = r.RooRealVar(
+                'dummy_gen_htmiss_pt',
+                'dummy_gen_htmiss_pt',
+                htmiss_variable.evaluate()
+            )
+
             datahist = r.RooDataHist(histname, histname,
-                            r.RooArgList(htmiss_variable),
+                            r.RooArgList(dummy_htmiss_variable),
                             hist
                         )
 
@@ -400,7 +402,8 @@ class RebalanceWSFactory(NamingMixin):
 
             prior_pdf = r.RooHistPdf(prior_pdf_name,
                             prior_pdf_name,
-                            r.RooArgSet(htmiss_variable),
+                            r.RooArgList(htmiss_variable),
+                            r.RooArgList(dummy_htmiss_variable),
                             datahist
                         )
 
