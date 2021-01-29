@@ -6,8 +6,8 @@ import numpy as np
 @dataclass(frozen=True)
 class Jet():
     pt: float
-    eta: float
     phi: float
+    eta: float
     px: float = 0
     py: float = 0
     pz: float = 0
