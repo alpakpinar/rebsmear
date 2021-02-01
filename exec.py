@@ -17,6 +17,7 @@ def parse_cli():
     parser = argparse.ArgumentParser()
     parser.add_argument('inpath', help='Path to the input ROOT file.')
     parser.add_argument('--jobname', help='Name of the job.')
+    parser.add_argument('--chunksize', help='Number of events for each chunk.', type=int, default=2500)
     parser.add_argument('--dry', help='Dry run, runs over 10 events.', action='store_true')
     args = parser.parse_args()
     return args
@@ -136,10 +137,12 @@ def plot_plane(ws, tag):
 
     fig.savefig(f"output/test_{tag}.png", dpi=300)
 
-def divide_into_chunks(args, eventchunksize=2500):
+def divide_into_chunks(args):
     '''Divide the number of events in the input file into given chunk sizes.'''
     # Read the input file
     infile = uproot.open(args.inpath)
+
+    eventchunksize = args.chunksize
 
     nevents = len(infile['Events'])
     nchunks = nevents // eventchunksize + 1
@@ -159,7 +162,7 @@ def divide_into_chunks(args, eventchunksize=2500):
 
     return event_chunks
 
-def run_chunk(event_chunk, nchunk, args, do_plot=False, do_print=False):
+def run_chunk(event_chunk, nchunk, outdir, logdir, args, do_plot=False, do_print=False):
     '''Run rebalancing for chunks of events in the given event chunk.'''
     # Record the running time
     starttime = time.time()
@@ -169,7 +172,7 @@ def run_chunk(event_chunk, nchunk, args, do_plot=False, do_print=False):
 
     jobname = args.jobname
     # Output ROOT file for this event chunk
-    f=r.TFile(f"./output/{jobname}/ws_eventchunk_{nchunk}.root","RECREATE")
+    f=r.TFile(pjoin(outdir, f"ws_eventchunk_{nchunk}.root"),"RECREATE")
 
     # Test run
     if args.dry:
@@ -180,9 +183,6 @@ def run_chunk(event_chunk, nchunk, args, do_plot=False, do_print=False):
         numevents = event_chunk.stop - event_chunk.start
 
     # Log file for this event chunk
-    logdir = f'./output/{jobname}/logs'
-    if not os.path.exists(logdir):
-        os.makedirs(logdir)
     logf = pjoin(logdir, f'log_eventchunk_{nchunk}.txt')
     with open(logf, 'w+') as logfile:
         logfile.write(f'Starting job, time: {time.ctime()}\n\n')
@@ -236,17 +236,23 @@ def main():
     if not args.inpath:
         raise RuntimeError('Please provide an input ROOT file.')
 
-
     event_chunks = divide_into_chunks(args)
     nchunks = len(event_chunks)
 
-    p1 = multiprocessing.Process(target=run_chunk, args=(event_chunks[0], 0, args))
+    outdir = f'./output/{args.jobname}'
+    logdir = f'./output/{args.jobname}/logs'
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    if not os.path.exists(logdir):
+        os.makedirs(logdir)
+
+    p1 = multiprocessing.Process(target=run_chunk, args=(event_chunks[0], 0, outdir, logdir, args))
     p1.start()
-    p2 = multiprocessing.Process(target=run_chunk, args=(event_chunks[1], 1, args))
+    p2 = multiprocessing.Process(target=run_chunk, args=(event_chunks[1], 1, outdir, logdir, args))
     p2.start()
-    p3 = multiprocessing.Process(target=run_chunk, args=(event_chunks[2], 2, args))
+    p3 = multiprocessing.Process(target=run_chunk, args=(event_chunks[2], 2, outdir, logdir, args))
     p3.start()
-    p4 = multiprocessing.Process(target=run_chunk, args=(event_chunks[3], 3, args))
+    p4 = multiprocessing.Process(target=run_chunk, args=(event_chunks[3], 3, outdir, logdir, args))
     p4.start()
 
     p1.join()
