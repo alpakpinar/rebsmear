@@ -18,11 +18,20 @@ def plot_htmiss_before_and_after(outdir, infile):
 
     fig, ax = plt.subplots()
 
-    hep.histplot(htmiss_bef.values, htmiss_bef.edges, ax=ax)
-    hep.histplot(htmiss_aft.values, htmiss_aft.edges, ax=ax)
+    hep.histplot(htmiss_bef.values, htmiss_bef.edges, ax=ax, label='Before')
+    hep.histplot(htmiss_aft.values, htmiss_aft.edges, ax=ax, label='After')
 
     ax.set_xlabel(r'$H_T^{miss} \ (GeV)$', fontsize=14)
     ax.set_ylabel(r'Counts', fontsize=14)
+
+    ax.legend(title='Rebalancing')
+
+    ax.text(0., 1., 'JetHT 2017',
+        fontsize=14,
+        ha='left',
+        va='bottom',
+        transform=ax.transAxes
+    )
 
     outpath = pjoin(outdir, f'htmiss_before_after_reb.pdf')
     fig.savefig(outpath)
