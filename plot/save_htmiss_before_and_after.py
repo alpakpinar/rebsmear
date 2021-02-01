@@ -59,8 +59,10 @@ def main():
     inpath = sys.argv[1]
     infiles = glob.glob(pjoin(inpath, 'ws_eventchunk*.root'))
 
+    jobtag = inpath.split('/')[2]
+
     # Output directory for plotting
-    outdir = './output'
+    outdir = f'./output/{jobtag}'
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 

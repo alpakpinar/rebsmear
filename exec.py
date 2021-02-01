@@ -16,7 +16,8 @@ pjoin = os.path.join
 def parse_cli():
     parser = argparse.ArgumentParser()
     parser.add_argument('inpath', help='Path to the input ROOT file.')
-    parser.add_argument('--dry', help='Dry run. Runs over 10 events, do not specify at the same time with --numevents.', action='store_true')
+    parser.add_argument('--jobname', help='Name of the job.')
+    parser.add_argument('--dry', help='Dry run, runs over 10 events.', action='store_true')
     args = parser.parse_args()
     return args
 
@@ -166,8 +167,9 @@ def run_chunk(event_chunk, nchunk, args, do_plot=False, do_print=False):
     # Read the input file
     infile = uproot.open(args.inpath)
 
+    jobname = args.jobname
     # Output ROOT file for this event chunk
-    f=r.TFile(f"./output/ws_eventchunk_{nchunk}.root","RECREATE")
+    f=r.TFile(f"./output/{jobname}/ws_eventchunk_{nchunk}.root","RECREATE")
 
     # Test run
     if args.dry:
@@ -178,12 +180,12 @@ def run_chunk(event_chunk, nchunk, args, do_plot=False, do_print=False):
         numevents = event_chunk.stop - event_chunk.start
 
     # Log file for this event chunk
-    logdir = './output/logs'
+    logdir = f'./output/{jobname}/logs'
     if not os.path.exists(logdir):
         os.makedirs(logdir)
     logf = pjoin(logdir, f'log_eventchunk_{nchunk}.txt')
     with open(logf, 'w+') as logfile:
-        logfile.write(f'Starting job, time: {starttime.ctime()}\n\n')
+        logfile.write(f'Starting job, time: {time.ctime()}\n\n')
         logfile.write(f'INFO: Event chunk {nchunk}\n')
         logfile.write(f'INFO: Event range: ({event_chunk.start}, {event_chunk.stop})\n')
         logfile.write(f'INFO: Running on {numevents} events\n')
@@ -194,7 +196,7 @@ def run_chunk(event_chunk, nchunk, args, do_plot=False, do_print=False):
             with open(logf, 'a') as logfile:
                 logfile.write('*****\n')
                 logfile.write(f'Processing event: {event}\n')
-                logfile.write(f'Time passed: {time.time() - starttime}\n')
+                logfile.write(f'Time passed: {time.time() - starttime:.2f} sec\n')
 
         jets = read_jets(event, infile)
         rbwsfac = RebalanceWSFactory(jets)
@@ -217,7 +219,7 @@ def run_chunk(event_chunk, nchunk, args, do_plot=False, do_print=False):
 
     with open(logf, 'a') as logfile:
         logfile.write('\n')
-        logfile.write('Finished job\n')
+        logfile.write(f'Finished job {time.ctime()}\n')
         logfile.write('JOB INFO:\n')
         endtime = time.time()
         timeinterval = endtime - starttime
