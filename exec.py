@@ -183,7 +183,7 @@ def run_chunk(event_chunk, nchunk, args, do_plot=False, do_print=False):
         os.makedirs(logdir)
     logf = pjoin(logdir, f'log_eventchunk_{nchunk}.txt')
     with open(logf, 'w+') as logfile:
-        logfile.write(f'Starting job, time: {starttime}\n\n')
+        logfile.write(f'Starting job, time: {starttime.ctime()}\n\n')
         logfile.write(f'INFO: Event chunk {nchunk}\n')
         logfile.write(f'INFO: Event range: ({event_chunk.start}, {event_chunk.stop})\n')
         logfile.write(f'INFO: Running on {numevents} events\n')
@@ -194,9 +194,8 @@ def run_chunk(event_chunk, nchunk, args, do_plot=False, do_print=False):
             with open(logf, 'a') as logfile:
                 logfile.write('*****\n')
                 logfile.write(f'Processing event: {event}\n')
-                logfile.write(f'Time: {time.time()}\n')
-                logfile.write('*****\n')
-                
+                logfile.write(f'Time passed: {time.time() - starttime}\n')
+
         jets = read_jets(event, infile)
         rbwsfac = RebalanceWSFactory(jets)
         rbwsfac.set_jer_source("./input/jer.root","jer_data")
