@@ -59,7 +59,7 @@ def main():
     inpath = sys.argv[1]
     infiles = glob.glob(pjoin(inpath, 'ws_eventchunk*.root'))
 
-    jobtag = inpath.split('/')[2]
+    jobtag = re.findall('202\d.*', infile)[0].split('/')[0]
 
     # Output directory for plotting
     outdir = f'./output/{jobtag}'
