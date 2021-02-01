@@ -1,5 +1,7 @@
+import os
 import time
 import argparse
+import multiprocessing
 import numpy as np
 from numpy.lib.function_base import extract
 import ROOT as r
@@ -7,11 +9,13 @@ r.gSystem.Load('libRooFit')
 from rebalance import Jet, RebalanceWSFactory
 import uproot
 from matplotlib import pyplot as plt
+from pprint import pprint
+
+pjoin = os.path.join
 
 def parse_cli():
     parser = argparse.ArgumentParser()
     parser.add_argument('inpath', help='Path to the input ROOT file.')
-    parser.add_argument('--numevents', help='Number of events to run on. If not specified, will run on all events in the input file.')
     parser.add_argument('--dry', help='Dry run. Runs over 10 events, do not specify at the same time with --numevents.', action='store_true')
     args = parser.parse_args()
     return args
@@ -131,66 +135,116 @@ def plot_plane(ws, tag):
 
     fig.savefig(f"output/test_{tag}.png", dpi=300)
 
+def divide_into_chunks(args, eventchunksize=2500):
+    '''Divide the number of events in the input file into given chunk sizes.'''
+    # Read the input file
+    infile = uproot.open(args.inpath)
 
-def main():
+    nevents = len(infile['Events'])
+    nchunks = nevents // eventchunksize + 1
+
+    event_chunks = []
+
+    for idx in range(nchunks-1):
+        event_chunks.append(
+            range(eventchunksize*idx, eventchunksize*(idx+1))
+        )
+
+    # The last chunk
+    remainder = nevents % eventchunksize
+    event_chunks.append(
+        range(eventchunksize*(nchunks-1), eventchunksize*(nchunks-1) + remainder)
+    )
+
+    return event_chunks
+
+def run_chunk(event_chunk, nchunk, args, do_plot=False, do_print=False):
+    '''Run rebalancing for chunks of events in the given event chunk.'''
     # Record the running time
     starttime = time.time()
 
-    args = parse_cli()
-    inpath = args.inpath
-
-    if not inpath:
-        raise RuntimeError('Please provide an input ROOT file.')
-
     # Read the input file
-    infile = uproot.open(inpath)
+    infile = uproot.open(args.inpath)
 
-    # Number of events to run over
-    if args.numevents is not None:
-        numevents = args.numevents
+    # Output ROOT file for this event chunk
+    f=r.TFile(f"./output/ws_eventchunk_{nchunk}.root","RECREATE")
+
     # Test run
-    elif args.dry:
+    if args.dry:
+        # Run over first 10 events only
         numevents = 10
+        event_chunk = range(10*nchunk,10*(nchunk+1))
     else:
-        numevents = len(infile['Events'])
+        numevents = event_chunk.stop - event_chunk.start + 1
 
-    print(f'INFO: Running on {numevents} events')
+    # Log file for this event chunk
+    logdir = './output/logs'
+    if not os.path.exists(logdir):
+        os.makedirs(logdir)
+    logf = pjoin(logdir, f'log_eventchunk_{nchunk}.txt')
+    with open(logf, 'w+') as logfile:
+        logfile.write('Starting job\n\n')
+        logfile.write(f'INFO: Event chunk {nchunk}\n')
+        logfile.write(f'INFO: Event range: ({event_chunk.start}, {event_chunk.stop})\n')
+        logfile.write(f'INFO: Running on {numevents} events\n')
 
-    f=r.TFile("./output/ws_all.root","RECREATE")
-
-    for event in range(numevents):
+    # Loop over the events in the chunk
+    for event in event_chunk:
         jets = read_jets(event, infile)
         rbwsfac = RebalanceWSFactory(jets)
         rbwsfac.set_jer_source("./input/jer.root","jer_data")
         rbwsfac.build()
         ws = rbwsfac.get_ws()
-        ws.Print("v")
+        if do_print:
+            ws.Print("v")
 
-        # for i in range(int(ws.var("njets").getValV())):
-        #     print(i, jets[i].px, ws.var(f"gen_px_{i}").getValV(), ws.var(f"reco_px_{i}").getValV())
+        if do_plot:
+            plot_plane(ws, tag=f"{event}_before")
         
-        # for i in range(int(ws.var("njets").getValV())):
-        #     print(i, jets[i].py, ws.var(f"gen_py_{i}").getValV(), ws.var(f"reco_py_{i}").getValV())
-
-
-        plot_plane(ws, tag=f"{event}_before")
-        # ws.Write('before')
+        f.cd()
+        ws.Write(f'before_{event}')
         m = r.RooMinimizer(ws.function("nll"))
         m.migrad()
-        f.cd()
-        ws.Write(f'rebalanced_event_{event}')
-        plot_plane(ws, tag=f"{event}_after")
+        ws.Write(f'rebalanced_{event}')
+        if do_plot:
+            plot_plane(ws, tag=f"{event}_after")
 
-    print('*'*20)
-    print('JOB INFO:')
-    endtime = time.time()
-    timeinterval = endtime - starttime
-    timeinterval_per_event = (endtime - starttime) / numevents
-    print(f'Ran over {numevents} events')
-    print(f'Total running time: {timeinterval:.3f} s')
-    print(f'Running time/event: {timeinterval_per_event:.3f} s')
-    print('*'*20)
+    with open(logf, 'a') as logfile:
+        logfile.write('\n')
+        logfile.write('Finished job\n')
+        logfile.write('JOB INFO:\n')
+        endtime = time.time()
+        timeinterval = endtime - starttime
+        timeinterval_per_event = (endtime - starttime) / numevents
+        logfile.write(f'Ran over {numevents} events\n')
+        logfile.write(f'Total running time: {timeinterval:.3f} s\n')
+        logfile.write(f'Running time/event: {timeinterval_per_event:.3f} s\n')
 
     return ws
+
+def main():
+    args = parse_cli()
+
+    if not args.inpath:
+        raise RuntimeError('Please provide an input ROOT file.')
+
+
+    event_chunks = divide_into_chunks(args)
+    nchunks = len(event_chunks)
+
+    p1 = multiprocessing.Process(target=run_chunk, args=(event_chunks[0], 0, args))
+    p1.start()
+    p2 = multiprocessing.Process(target=run_chunk, args=(event_chunks[1], 1, args))
+    p2.start()
+    p3 = multiprocessing.Process(target=run_chunk, args=(event_chunks[2], 2, args))
+    p3.start()
+    p4 = multiprocessing.Process(target=run_chunk, args=(event_chunks[3], 3, args))
+    p4.start()
+
+    p1.join()
+    p2.join()
+    p3.join()
+    p4.join()
+
 if __name__ == "__main__":
-    ws = main()
+    main()
