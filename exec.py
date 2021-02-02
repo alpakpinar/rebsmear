@@ -27,8 +27,9 @@ def read_jets(event, infile):
     n = event
     
     pt, phi, eta = (t[f'Jet_{x}'].array(entrystart=n, entrystop=n+1)[0] for x in ['pt','phi','eta'])
-    
-    return [Jet(pt=ipt, phi=iphi, eta=ieta) for ipt, iphi, ieta in zip(pt, phi, eta)]
+
+    # Consider jets with pt > 30 GeV only
+    return [Jet(pt=ipt, phi=iphi, eta=ieta) for ipt, iphi, ieta in zip(pt, phi, eta) if ipt>30]
 
 
 def extract_values(ws, tier):
