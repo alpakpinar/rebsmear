@@ -14,9 +14,9 @@ from pprint import pprint
 
 pjoin = os.path.join
 
-def compare_with_genhtmiss_dist(acc, jobtag, inputrootfile, logy=False):
+def compare_with_genhtmiss_dist(acc, distribution, jobtag, filetag, inputrootfile, logy=False):
     '''Compare the GEN-level HTmiss distribution with the HTmiss distribution coming from rebalancing.'''
-    h = acc['gen_htmiss']
+    h = acc[distribution]
 
     # Get all the events
     h = h.integrate('dataset').integrate('region', 'inclusive')
@@ -42,10 +42,17 @@ def compare_with_genhtmiss_dist(acc, jobtag, inputrootfile, logy=False):
         transform=ax.transAxes
     )
 
+    ax.text(1., 1., filetag,
+        fontsize=14,
+        ha='right',
+        va='bottom',
+        transform=ax.transAxes
+    )
+
     handles, labels = ax.get_legend_handles_labels()
     for handle, label in zip(handles, labels):
         if label == 'None':
-            handle.set_label('From QCD MC (GEN)')
+            handle.set_label('QCD MC (GEN)')
 
     ax.legend(handles=handles)
 
@@ -65,13 +72,19 @@ def main():
     # Input ROOT file
     inputrootpath = sys.argv[1]
     inputrootfile = uproot.open(inputrootpath)
-    # Input coffea file for GEN-level HTmiss distribution
-    acc = load('./input/qcd_QCD_HT700to1000-mg_new_pmx_2017.coffea')
-
     jobtag = re.findall('202\d.*', inputrootpath)[0].split('/')[0]
 
-    compare_with_genhtmiss_dist(acc, jobtag, inputrootfile)
-    compare_with_genhtmiss_dist(acc, jobtag, inputrootfile, logy=True)
+    # Input coffea file for GEN-level HTmiss distribution
+    coffeapath = './input/qcd_QCD_HT700to1000-mg_new_pmx_2017.coffea'
+    acc = load(coffeapath)
+
+    filetag = re.findall('HT\d+to\d+', coffeapath)[0]
+
+    # The distribution to look at
+    distribution = 'gen_htmiss_noweight'
+
+    compare_with_genhtmiss_dist(acc, distribution, jobtag, filetag, inputrootfile)
+    compare_with_genhtmiss_dist(acc, distribution, jobtag, filetag, inputrootfile, logy=True)
 
 if __name__ == '__main__':
     main()
