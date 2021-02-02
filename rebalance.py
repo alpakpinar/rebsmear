@@ -6,8 +6,8 @@ import numpy as np
 @dataclass(frozen=True)
 class Jet():
     pt: float
-    phi: float
     eta: float
+    phi: float
     px: float = 0
     py: float = 0
     pz: float = 0
@@ -338,77 +338,91 @@ class RebalanceWSFactory(NamingMixin):
         rfile = './input/htmiss_prior.root'
         return r.TFile(rfile)
 
-    def _figure_out_ht_bin(self, gen_ht):
+    def _name_ht_bin(self, gen_ht):
         '''Given the GEN-HT of the event, figure out which HT bin it corresponds to.'''
-        prior_ht_bins = [
-            '100_to_300',
-            '300_to_500',
-            '500_to_700',
-            '700_to_900',
-            '900_to_1300',
-            '1300_to_2000',
-            '2000_to_5000',
-        ]
-        for ht_bin in prior_ht_bins:
-            ht_bin_split = ht_bin.split('_')
-            min_ht, max_ht = int(ht_bin_split[0]), int(ht_bin_split[-1]) 
+        # Binning of the prior in terms of HT
+        htbins = [100, 300, 500, 700, 900, 1300, 2000, 5000]
+        for idx in range(len(htbins)-1):
+            lo = htbins[idx]
+            hi = htbins[idx+1]
 
-            if (gen_ht >= min_ht) and (gen_ht <= max_ht):
-                return ht_bin
+            if (lo <= gen_ht) and (gen_ht <= hi):
+                print(gen_ht)
+                print(f'{lo:.0f}_to_{hi:.0f}')
+                return f'{lo:.0f}_to_{hi:.0f}'
 
         raise RuntimeError(f'Could not figure out the HT bin for HT: {gen_ht:.3f}')
+
+    def _get_prior_histogram(self, key):
+        hist = key.ReadObj()
+        histname = hist.GetName()
+        return hist, histname
+
+    def _convert_th1_to_roohistpdf(self, th1, th1name):
+        '''Do the TH1 -> RooDataHist -> RooHistPdf conversion. Returns the final RooHistPdf.'''
+        htmiss_variable = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt'))
+
+        # We need to provide at least one RooRealVar (primitive variable) into the RooDataHist and RooHistPdf
+        # Providing only derived quantities do not work in the datahist/pdf constructors
+        # To achieve that, we define this dummy RooRealVar and evaluate it at the initial value of HTmiss.
+        dummy_htmiss_variable = r.RooRealVar(
+            'dummy_gen_htmiss_pt',
+            'dummy_gen_htmiss_pt',
+            htmiss_variable.evaluate()
+        )
+
+        datahist = r.RooDataHist(th1name, th1name,
+                        r.RooArgList(dummy_htmiss_variable),
+                        th1
+                    )
+
+        prior_pdf_name = self._name_total_gen_htmiss_prior_pdf()
+
+        prior_pdf = r.RooHistPdf(prior_pdf_name,
+                        prior_pdf_name,
+                        r.RooArgList(htmiss_variable),
+                        r.RooArgList(dummy_htmiss_variable),
+                        datahist
+                    )
+
+        # Linear interpolation
+        prior_pdf.setInterpolationOrder(1)
+
+        return prior_pdf
 
     def _build_gen_htmiss_prior(self):
         '''Build gen HTmiss prior, extracted from the source file.'''
         # Get the source file for prior distributions
         prior_input_file = self._get_gen_htmiss_prior_file()
 
-        # Get the (already saved to WS) HTmiss and HT variables
+        # Get the HT variable from workspace
         gen_ht = self.ws.function(self._name_total_gen_ht_variable())
-        gen_htmiss = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt')).evaluate()
 
         # For the event at hand, do the following:
         # 1. Get the histogram corresponding to the HT bin, based on GEN-HT of event
         # 2. Convert it into a RooDataHist and finally a RooHistPDF
         # 3. Save the RooHistPDF to the workspace
 
-        ht_bin_for_event = self._figure_out_ht_bin(gen_ht.evaluate())
+        ht_bin_for_event = self._name_ht_bin(gen_ht.evaluate())
 
         # TODO: Year implementation?
         # For the time being, use 2017 histograms
         for key in prior_input_file.GetListOfKeys():
-            hist = key.ReadObj()
-            histname = hist.GetName()
+            hist, histname = self._get_prior_histogram(key)
 
             if '2018' in histname:
                 continue
             if ht_bin_for_event not in histname:
                 continue
 
-            htmiss_variable = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt'))
+            # Out of the TH1 histogram, get RooHistPdf, ready to save into the workspace
+            prior_pdf = self._convert_th1_to_roohistpdf(hist, histname)
 
-            dummy_htmiss_variable = r.RooRealVar(
-                'dummy_gen_htmiss_pt',
-                'dummy_gen_htmiss_pt',
-                htmiss_variable.evaluate()
-            )
-
-            datahist = r.RooDataHist(histname, histname,
-                            r.RooArgList(dummy_htmiss_variable),
-                            hist
-                        )
-
-            prior_pdf_name = self._name_total_gen_htmiss_prior_pdf()
-
-            prior_pdf = r.RooHistPdf(prior_pdf_name,
-                            prior_pdf_name,
-                            r.RooArgList(htmiss_variable),
-                            r.RooArgList(dummy_htmiss_variable),
-                            datahist
-                        )
-
-            # Quadratic interpolation
-            prior_pdf.setInterpolationOrder(1)
+            # FIXME: Trouble here
+            # When we return prior_pdf from another function, we can't access it within this scope?
+            print('coming here')
+            print(prior_pdf) # Seg fault happens here
+            print('NOT coming here')
 
             # Save the PDF into workspace
             self._wsimp(prior_pdf)
@@ -416,6 +430,7 @@ class RebalanceWSFactory(NamingMixin):
     def _build_total_prior(self):
         pdf_name = self._name_total_prior_pdf()
         partial_prior_pdf_names = [self._name_total_gen_htmiss_prior_pdf()]
+        print(partial_prior_pdf_names)
         partial_prior_pdfs = [self.ws.function(x) for x in partial_prior_pdf_names]
         expression = '*'.join(partial_prior_pdf_names)
         total_prior_pdf = r.RooGenericPdf(
