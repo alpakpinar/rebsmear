@@ -10,6 +10,8 @@ import mplhep as hep
 from matplotlib import pyplot as plt
 from coffea.util import load
 from coffea import hist
+from bucoffea.plot.util import merge_datasets, merge_extensions, scale_xs_lumi
+from klepto.archives import dir_archive
 from pprint import pprint
 
 pjoin = os.path.join
@@ -68,7 +70,7 @@ def compare_with_genhtmiss_dist(acc, distribution, jobtag, filetag, inputrootfil
     plt.close(fig)
     print(f'File saved: {outpath}')
 
-def comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, logy=False):
+def comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, logy=False, acc_large=None):
     '''Compare GEN-HTmiss distribution with the priors we use as input to rebalancing.'''
     h = acc[distribution]
     # Get all the events
@@ -80,6 +82,22 @@ def comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, logy=False
     total_sumw = np.sum(h.values()[()])
     h.scale(1/total_sumw)
     hist.plot1d(h, ax=ax, binwnorm=1)
+
+    # Accumulator with the set of whole trees 
+    # (Instead of a single tree), if provided
+    if acc_large is not None:
+        acc_large.load(distribution)
+        h_large = acc_large[distribution]
+
+        h_large = merge_extensions(h_large, acc_large, reweight_pu=False)
+        scale_xs_lumi(h_large)
+        h_large = merge_datasets(h_large)
+
+        h_large = h_large.integrate('dataset').integrate('region', 'inclusive')
+
+        total_sumw = np.sum(h_large.values()[()])
+        h_large.scale(1/total_sumw)
+        hist.plot1d(h_large, ax=ax, binwnorm=1, clear=False)
 
     # Read and plot the priors from the input file
     inputpriorfile = uproot.open('../input/htmiss_prior.root')
@@ -102,10 +120,15 @@ def comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, logy=False
         ax.set_yscale('log')
         ax.set_ylim(1e-8,1e0)
 
+    new_labels = [
+        'GEN $H_T^{miss}$ from QCD MC \n($700 < H_T < 1000 \ GeV$, single tree)',
+        'GEN $H_T^{miss}$ from QCD MC \n($700 < H_T < 1000 \ GeV$, all trees combined)',
+    ]
+
     handles, labels = ax.get_legend_handles_labels()
-    for handle, label in zip(handles, labels):
+    for idx, (handle, label) in enumerate(zip(handles, labels)):
         if label == 'None':
-            handle.set_label('GEN $H_T^{miss}$ from QCD MC \n ($700 < H_T < 1000 \ GeV$)')
+            handle.set_label(new_labels[idx-2])
 
     ax.legend(handles=handles)
     ax.set_ylabel('Normalized Yields')
@@ -129,8 +152,13 @@ def main():
     jobtag = re.findall('202\d.*', inputrootpath)[0].split('/')[0]
 
     # Input coffea file for GEN-level HTmiss distribution
-    coffeapath = './input/qcd_QCD_HT700to1000-mg_new_pmx_2017.coffea'
+    coffeapath = './input/qcd_QCD_HT700to1000-mg_new_pmx_2017_v2.coffea'
     acc = load(coffeapath)
+
+    # Accumulator with the whole set of trees for 700 < HT < 1000
+    acc_large = dir_archive('./input/merged_2021-02-03_qcd_test_HT-700_to_1000')
+    acc_large.load('sumw')
+    acc_large.load('sumw2')
 
     filetag = re.findall('HT\d+to\d+', coffeapath)[0]
 
@@ -141,8 +169,8 @@ def main():
     compare_with_genhtmiss_dist(acc, distribution, jobtag, filetag, inputrootfile, logy=True)
 
     # Compare priors with GEN-level HTmiss we obtain
-    comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag)
-    comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, logy=True)
+    comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, acc_large=acc_large)
+    comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, logy=True, acc_large=acc_large)
 
 if __name__ == '__main__':
     main()
