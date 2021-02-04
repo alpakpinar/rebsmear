@@ -351,13 +351,24 @@ class RebalanceWSFactory(NamingMixin):
 
         raise RuntimeError(f'Could not figure out the HT bin for HT: {gen_ht:.3f}')
 
-    def _get_prior_histogram(self, key):
-        hist = key.ReadObj()
-        histname = hist.GetName()
-        return hist, histname
+    def _get_prior_histogram(self, prior_input_file):
+        # Get the HT variable from workspace
+        gen_ht = self.ws.function(self._name_total_gen_ht_variable())
+        ht_bin_for_event = self._name_ht_bin(gen_ht.evaluate())
 
-    def _convert_th1_to_roohistpdf_and_save_to_ws(self, th1, th1name):
-        '''Do the TH1 -> RooDataHist -> RooHistPdf conversion. Saves the final RooHistPdf into the workspace.'''
+        # Get the right prior histogram from the input file and return the histogram
+        for key in prior_input_file.GetListOfKeys():
+            hist = key.ReadObj()
+            histname = hist.GetName()
+            if '2018' in histname:
+                continue
+            if ht_bin_for_event not in histname:
+                continue
+
+            return hist
+
+    def _build_gen_htmiss_prior_roohistpdf(self, th1):
+        '''Do the TH1 -> RooDataHist -> RooHistPdf conversion for the prior PDF. Saves the final RooHistPdf into the workspace.'''
         htmiss_variable = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt'))
 
         # We need to provide at least one RooRealVar (primitive variable) into the RooDataHist and RooHistPdf
@@ -368,6 +379,9 @@ class RebalanceWSFactory(NamingMixin):
             'dummy_gen_htmiss_pt',
             htmiss_variable.evaluate()
         )
+
+        # Name for datahist, not important since the datahist is just an intermediate step anyway
+        th1name = th1.GetName()
 
         datahist = r.RooDataHist(th1name, th1name,
                         r.RooArgList(dummy_htmiss_variable),
@@ -393,28 +407,15 @@ class RebalanceWSFactory(NamingMixin):
         # Get the source file for prior distributions
         prior_input_file = self._get_gen_htmiss_prior_file()
 
-        # Get the HT variable from workspace
-        gen_ht = self.ws.function(self._name_total_gen_ht_variable())
+        # From the input file, extract the right histogram
+        hist = self._get_prior_histogram(prior_input_file)
 
         # For the event at hand, do the following:
         # 1. Get the histogram corresponding to the HT bin, based on GEN-HT of event
         # 2. Convert it into a RooDataHist and finally a RooHistPDF
         # 3. Save the RooHistPDF to the workspace
-
-        ht_bin_for_event = self._name_ht_bin(gen_ht.evaluate())
-
-        # TODO: Year implementation?
-        # For the time being, use 2017 histograms
-        for key in prior_input_file.GetListOfKeys():
-            hist, histname = self._get_prior_histogram(key)
-
-            if '2018' in histname:
-                continue
-            if ht_bin_for_event not in histname:
-                continue
-
-            # Out of the TH1 histogram, get RooHistPdf, and save it into the workspace
-            self._convert_th1_to_roohistpdf_and_save_to_ws(hist, histname)
+        # --> All done within this function
+        self._build_gen_htmiss_prior_roohistpdf(hist)
 
     def _build_total_prior(self):
         pdf_name = self._name_total_prior_pdf()
