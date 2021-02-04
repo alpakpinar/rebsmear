@@ -407,14 +407,12 @@ class RebalanceWSFactory(NamingMixin):
         # Get the source file for prior distributions
         prior_input_file = self._get_gen_htmiss_prior_file()
 
-        # From the input file, extract the right histogram
-        hist = self._get_prior_histogram(prior_input_file)
-
         # For the event at hand, do the following:
         # 1. Get the histogram corresponding to the HT bin, based on GEN-HT of event
+        hist = self._get_prior_histogram(prior_input_file)
+
         # 2. Convert it into a RooDataHist and finally a RooHistPDF
         # 3. Save the RooHistPDF to the workspace
-        # --> All done within this function
         self._build_gen_htmiss_prior_roohistpdf(hist)
 
     def _build_total_prior(self):
