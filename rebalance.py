@@ -3,7 +3,6 @@ import ROOT as r
 r.gSystem.Load('libRooFit')
 import numpy as np
 
-
 @dataclass(frozen=True)
 class Jet():
     pt: float
@@ -335,24 +334,86 @@ class RebalanceWSFactory(NamingMixin):
     def _name_total_gen_htmiss_prior_slope(self):
         return 'gen_htmiss_prior_slope'
 
-    def _build_gen_htmiss_prior(self):
-        slope_name = self._name_total_gen_htmiss_prior_slope()
-        slope_variable = r.RooRealVar(
-            slope_name,
-            slope_name,
-            -0.05,
+    def _get_gen_htmiss_prior_file(self):
+        rfile = './input/htmiss_prior.root'
+        return r.TFile(rfile)
+
+    def _name_ht_bin(self, gen_ht):
+        '''Given the GEN-HT of the event, figure out which HT bin it corresponds to.'''
+        # Binning of the prior in terms of HT
+        htbins = [100, 300, 500, 700, 900, 1300, 2000, 5000]
+        for idx in range(len(htbins)-1):
+            lo = htbins[idx]
+            hi = htbins[idx+1]
+
+            if (lo <= gen_ht) and (gen_ht <= hi):
+                return f'{lo:.0f}_to_{hi:.0f}'
+
+        raise RuntimeError(f'Could not figure out the HT bin for HT: {gen_ht:.3f}')
+
+    def _get_prior_histogram(self, prior_input_file):
+        # Get the HT variable from workspace
+        gen_ht = self.ws.function(self._name_total_gen_ht_variable())
+        ht_bin_for_event = self._name_ht_bin(gen_ht.evaluate())
+
+        # Get the right prior histogram from the input file and return the histogram
+        for key in prior_input_file.GetListOfKeys():
+            hist = key.ReadObj()
+            histname = hist.GetName()
+            if '2018' in histname:
+                continue
+            if ht_bin_for_event not in histname:
+                continue
+
+            return hist
+
+    def _build_gen_htmiss_prior_roohistpdf(self, th1):
+        '''Do the TH1 -> RooDataHist -> RooHistPdf conversion for the prior PDF. Saves the final RooHistPdf into the workspace.'''
+        htmiss_variable = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt'))
+
+        # We need to provide at least one RooRealVar (primitive variable) into the RooDataHist and RooHistPdf
+        # Providing only derived quantities do not work in the datahist/pdf constructors
+        # To achieve that, we define this dummy RooRealVar and evaluate it at the initial value of HTmiss.
+        dummy_htmiss_variable = r.RooRealVar(
+            'dummy_gen_htmiss_pt',
+            'dummy_gen_htmiss_pt',
+            htmiss_variable.evaluate()
         )
-        self._wsimp(slope_variable)
+
+        # Name for datahist, not important since the datahist is just an intermediate step anyway
+        th1name = th1.GetName()
+
+        datahist = r.RooDataHist(th1name, th1name,
+                        r.RooArgList(dummy_htmiss_variable),
+                        th1
+                    )
 
         prior_pdf_name = self._name_total_gen_htmiss_prior_pdf()
-        htmiss_variable = self.ws.function(self._name_partial_gen_htmiss_variable(direction='pt'))
-        prior_pdf = r.RooExponential(
-            prior_pdf_name,
-            prior_pdf_name,
-            htmiss_variable,
-            slope_variable
-        )
+
+        prior_pdf = r.RooHistPdf(prior_pdf_name,
+                        prior_pdf_name,
+                        r.RooArgList(htmiss_variable),
+                        r.RooArgList(dummy_htmiss_variable),
+                        datahist
+                    )
+
+        # Linear interpolation
+        prior_pdf.setInterpolationOrder(1)
+
         self._wsimp(prior_pdf)
+
+    def _build_gen_htmiss_prior(self):
+        '''Build gen HTmiss prior, extracted from the source file.'''
+        # Get the source file for prior distributions
+        prior_input_file = self._get_gen_htmiss_prior_file()
+
+        # For the event at hand, do the following:
+        # 1. Get the histogram corresponding to the HT bin, based on GEN-HT of event
+        hist = self._get_prior_histogram(prior_input_file)
+
+        # 2. Convert it into a RooDataHist and finally a RooHistPDF
+        # 3. Save the RooHistPDF to the workspace
+        self._build_gen_htmiss_prior_roohistpdf(hist)
 
     def _build_total_prior(self):
         pdf_name = self._name_total_prior_pdf()
