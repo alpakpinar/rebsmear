@@ -4,6 +4,7 @@ import os
 import sys
 import re
 import uproot
+import argparse
 import numpy as np
 import mplhep as hep
 
@@ -15,6 +16,14 @@ from klepto.archives import dir_archive
 from pprint import pprint
 
 pjoin = os.path.join
+
+def parse_cli():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--root', help='Path to root file containing distributions from rebalancing.')
+    parser.add_argument('--coffea', help='Path to coffea accumulator containing distributions from QCD MC.')
+    parser.add_argument('--compare_with_fullacc', help='Compare with the distribution from full accumulator.', action='store_true')
+    args = parser.parse_args()
+    return args
 
 def compare_with_genhtmiss_dist(acc, distribution, jobtag, filetag, inputrootfile, logy=False):
     '''Compare the GEN-level HTmiss distribution with the HTmiss distribution coming from rebalancing.'''
@@ -57,6 +66,8 @@ def compare_with_genhtmiss_dist(acc, distribution, jobtag, filetag, inputrootfil
             handle.set_label('QCD MC (GEN)')
 
     ax.legend(handles=handles)
+
+    ax.set_xlim(0,500)
 
     # Save figure
     outdir = f'./output/{jobtag}'
@@ -146,19 +157,26 @@ def comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, logy=False
     print(f'File saved: {outpath}')
 
 def main():
+    args = parse_cli()
+    if not (args.coffea and args.root):
+        raise RuntimeError('Please provide --coffea and --root arguments as inputs.')
+    
     # Input ROOT file
-    inputrootpath = sys.argv[1]
+    inputrootpath = args.root
     inputrootfile = uproot.open(inputrootpath)
     jobtag = re.findall('202\d.*', inputrootpath)[0].split('/')[0]
 
     # Input coffea file for GEN-level HTmiss distribution
-    coffeapath = './input/qcd_QCD_HT700to1000-mg_new_pmx_2017_v2.coffea'
+    coffeapath = args.coffea
     acc = load(coffeapath)
 
     # Accumulator with the whole set of trees for 700 < HT < 1000
-    acc_large = dir_archive('./input/merged_2021-02-03_qcd_test_HT-700_to_1000')
-    acc_large.load('sumw')
-    acc_large.load('sumw2')
+    if args.compare_with_fullacc:
+        acc_large = dir_archive('./input/merged_2021-02-03_qcd_test_HT-700_to_1000')
+        acc_large.load('sumw')
+        acc_large.load('sumw2')
+    else:
+        acc_large = None
 
     filetag = re.findall('HT\d+to\d+', coffeapath)[0]
 
