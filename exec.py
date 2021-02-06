@@ -9,6 +9,7 @@ r.gSystem.Load('libRooFit')
 from rebalance import Jet, RebalanceWSFactory
 import uproot
 from matplotlib import pyplot as plt
+from datetime import date
 from pprint import pprint
 
 pjoin = os.path.join
@@ -16,7 +17,7 @@ pjoin = os.path.join
 def parse_cli():
     parser = argparse.ArgumentParser()
     parser.add_argument('inpath', help='Path to the input ROOT file.')
-    parser.add_argument('--jobname', help='Name of the job.')
+    parser.add_argument('--jobname', help='Name of the job.', default=f'{date.today().strftime("%Y-%m-%d")}_rebsmear_run')
     parser.add_argument('--chunksize', help='Number of events for each chunk.', type=int, default=2500)
     parser.add_argument('--dry', help='Dry run, runs over 10 events.', action='store_true')
     parser.add_argument('--ncores', help='Number of cores to use, default is 4.', type=int, default=4)
