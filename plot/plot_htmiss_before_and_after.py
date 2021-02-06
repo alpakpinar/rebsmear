@@ -8,6 +8,8 @@ import uproot
 import ROOT as r
 import mplhep as hep
 from matplotlib import pyplot as plt
+from coffea.util import load
+from coffea import hist
 from pprint import pprint
 
 pjoin = os.path.join
@@ -64,7 +66,7 @@ def save_htmiss_before_and_after(infiles, outdir):
     print(f'Histograms saved to: {outpath}')
     return outpath
 
-def plot_htmiss_before_and_after(outdir, infile, dataset_tag='jetht'):
+def plot_htmiss_before_and_after(outdir, infile, dataset_tag='jetht', plot_gen=True):
     '''Do the actual plotting of distributions.'''
     f = uproot.open(infile)
     htmiss_bef = f['htmiss_before']
@@ -72,8 +74,8 @@ def plot_htmiss_before_and_after(outdir, infile, dataset_tag='jetht'):
 
     fig, ax = plt.subplots()
 
-    hep.histplot(htmiss_bef.values, htmiss_bef.edges, ax=ax, label='Before')
-    hep.histplot(htmiss_aft.values, htmiss_aft.edges, ax=ax, label='After')
+    hep.histplot(htmiss_bef.values, htmiss_bef.edges, ax=ax, label='Before rebalancing')
+    hep.histplot(htmiss_aft.values, htmiss_aft.edges, ax=ax, label='After rebalancing')
 
     ax.set_xlabel(r'$H_T^{miss} \ (GeV)$', fontsize=14)
     ax.set_ylabel(r'Counts', fontsize=14)
@@ -88,6 +90,24 @@ def plot_htmiss_before_and_after(outdir, infile, dataset_tag='jetht'):
         va='bottom',
         transform=ax.transAxes
     )
+
+    # If we're looking at QCD and plot_gen=True, plot the GEN HTmiss distribution as well
+    if dataset_tag == 'qcd' and plot_gen:
+        # Coffea file to take GEN HT-miss distribution from
+        accpath = './input/qcd_QCD_HT700to1000-mg_new_pmx_2017.coffea'
+        acc = load(accpath)
+
+        distribution = 'gen_htmiss_noweight'
+        h = acc[distribution].integrate('dataset').integrate('region', 'with_ht_cut')
+
+        hist.plot1d(h, ax=ax, clear=False)
+
+    handles, labels = ax.get_legend_handles_labels()
+    for handle, label in zip(handles, labels):
+        if label == 'None':
+            handle.set_label(r'GEN $H_T^{miss}$')
+
+    ax.legend(handles=handles)
 
     outpath = pjoin(outdir, f'htmiss_before_after_reb.pdf')
     fig.savefig(outpath)
