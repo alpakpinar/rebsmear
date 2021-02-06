@@ -91,7 +91,7 @@ class HistoSF2D():
         return self.evaluate(x,y)
 
 class JERLookup():
-    def __init__(self, filepath, histogram_name):
+    def __init__(self, filepath, histogram_name, placeholder_sigma=None):
         f = r.TFile(filepath)
         if not f:
             raise IOError(f"Could not open file: '{filepath}'")
@@ -103,10 +103,16 @@ class JERLookup():
         h.SetDirectory(0)
         self._evaluator = HistoSF2D(h)
 
+        # If a sigma is specified as a placeholder, use it instead (just for testing)
+        self.placeholder_sigma = placeholder_sigma
+
     def get_jer(self, pt, eta):
-        return self._evaluator(pt, np.abs(eta))
-
-
+        # Return the width of the Gaussian as read from the input file, if a placeholder value
+        # is specified however, return that for all jets instead.
+        if self.placeholder_sigma is None:
+            return self._evaluator(pt, np.abs(eta))
+        else:
+            return self.placeholder_sigma
 
 class RebalanceWSFactory(NamingMixin):
     '''
@@ -125,8 +131,8 @@ class RebalanceWSFactory(NamingMixin):
         self._wsimp = getattr(self.ws, 'import')
         self._jer_evaluator = None
         self._directions = 'pt','phi'
-    def set_jer_source(self,filepath, histogram_name):
-        self._jer_evaluator = JERLookup(filepath, histogram_name)
+    def set_jer_source(self,filepath, histogram_name, placeholder_sigma=None):
+        self._jer_evaluator = JERLookup(filepath, histogram_name, placeholder_sigma)
 
     def get_ws(self):
         return self.ws

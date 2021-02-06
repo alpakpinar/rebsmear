@@ -21,6 +21,7 @@ def parse_cli():
     parser.add_argument('--chunksize', help='Number of events for each chunk.', type=int, default=2500)
     parser.add_argument('--dry', help='Dry run, runs over 10 events.', action='store_true')
     parser.add_argument('--ncores', help='Number of cores to use, default is 4.', type=int, default=4)
+    parser.add_argument('--dummyjer', help='Placeholder Gaussian width for JER (for testing).', type=float, default=None)
     args = parser.parse_args()
     return args
 
@@ -203,7 +204,7 @@ def run_chunk(event_chunk, nchunk, outdir, logdir, args, do_plot=False, do_print
 
         jets = read_jets(event, infile)
         rbwsfac = RebalanceWSFactory(jets)
-        rbwsfac.set_jer_source("./input/jer.root","jer_data")
+        rbwsfac.set_jer_source("./input/jer.root","jer_data",args.dummyjer)
         rbwsfac.build()
         ws = rbwsfac.get_ws()
         if do_print:
