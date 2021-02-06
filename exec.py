@@ -243,10 +243,13 @@ def main():
 
     outdir = f'./output/{args.jobname}'
     logdir = f'./output/{args.jobname}/logs'
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-    if not os.path.exists(logdir):
-        os.makedirs(logdir)
+
+    # Do not allow to override an existing job output directory
+    if os.path.exists(outdir):
+        raise RuntimeError(f'Output directory exists: {outdir}, please remove it first.')
+
+    os.makedirs(outdir)
+    os.makedirs(logdir)
 
     processes = []
 
