@@ -98,7 +98,7 @@ def plot_htmiss_before_and_after(outdir, infile, dataset_tag='jetht', plot_gen=T
         acc = load(accpath)
 
         distribution = 'gen_htmiss_noweight'
-        h = acc[distribution].integrate('dataset').integrate('region', 'with_ht_cut')
+        h = acc[distribution].integrate('dataset').integrate('region', 'inclusive')
 
         hist.plot1d(h, ax=ax, clear=False)
 
