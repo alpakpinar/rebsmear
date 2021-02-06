@@ -9,6 +9,7 @@ r.gSystem.Load('libRooFit')
 from rebalance import Jet, RebalanceWSFactory
 import uproot
 from matplotlib import pyplot as plt
+from datetime import date
 from pprint import pprint
 
 pjoin = os.path.join
@@ -16,9 +17,11 @@ pjoin = os.path.join
 def parse_cli():
     parser = argparse.ArgumentParser()
     parser.add_argument('inpath', help='Path to the input ROOT file.')
-    parser.add_argument('--jobname', help='Name of the job.')
+    parser.add_argument('--jobname', help='Name of the job.', default=f'{date.today().strftime("%Y-%m-%d")}_rebsmear_run')
     parser.add_argument('--chunksize', help='Number of events for each chunk.', type=int, default=2500)
     parser.add_argument('--dry', help='Dry run, runs over 10 events.', action='store_true')
+    parser.add_argument('--ncores', help='Number of cores to use, default is 4.', type=int, default=4)
+    parser.add_argument('--dummyjer', help='Placeholder Gaussian width for JER (for testing).', type=float, default=None)
     args = parser.parse_args()
     return args
 
@@ -201,7 +204,7 @@ def run_chunk(event_chunk, nchunk, outdir, logdir, args, do_plot=False, do_print
 
         jets = read_jets(event, infile)
         rbwsfac = RebalanceWSFactory(jets)
-        rbwsfac.set_jer_source("./input/jer.root","jer_data")
+        rbwsfac.set_jer_source("./input/jer.root","jer_data",args.dummyjer)
         rbwsfac.build()
         ws = rbwsfac.get_ws()
         if do_print:
@@ -242,24 +245,23 @@ def main():
 
     outdir = f'./output/{args.jobname}'
     logdir = f'./output/{args.jobname}/logs'
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-    if not os.path.exists(logdir):
-        os.makedirs(logdir)
 
-    p1 = multiprocessing.Process(target=run_chunk, args=(event_chunks[0], 0, outdir, logdir, args))
-    p1.start()
-    p2 = multiprocessing.Process(target=run_chunk, args=(event_chunks[1], 1, outdir, logdir, args))
-    p2.start()
-    p3 = multiprocessing.Process(target=run_chunk, args=(event_chunks[2], 2, outdir, logdir, args))
-    p3.start()
-    p4 = multiprocessing.Process(target=run_chunk, args=(event_chunks[3], 3, outdir, logdir, args))
-    p4.start()
+    # Do not allow to override an existing job output directory
+    if os.path.exists(outdir):
+        raise RuntimeError(f'Output directory exists: {outdir}, please remove it first.')
 
-    p1.join()
-    p2.join()
-    p3.join()
-    p4.join()
+    os.makedirs(outdir)
+    os.makedirs(logdir)
+
+    processes = []
+
+    for jobidx in range(args.ncores):
+        proc = multiprocessing.Process(target=run_chunk, args=(event_chunks[jobidx], jobidx, outdir, logdir, args))
+        proc.start()
+        processes.append(proc)
+
+    for process in processes:
+        process.join()
 
 if __name__ == "__main__":
     main()
