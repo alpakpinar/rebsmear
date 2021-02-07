@@ -6,8 +6,10 @@ import numpy as np
 from numpy.lib.function_base import extract
 import ROOT as r
 r.gSystem.Load('libRooFit')
-from rebalance import Jet, RebalanceWSFactory
+
 import uproot
+from bucoffea.helpers.git import git_rev_parse, git_diff
+from rebalance import Jet, RebalanceWSFactory
 from matplotlib import pyplot as plt
 from datetime import date
 from pprint import pprint
@@ -255,7 +257,19 @@ def main():
 
     processes = []
 
-    for jobidx in range(args.ncores):
+    # Save repo information for this job
+    versionfilepath = pjoin(outdir, 'version.txt')
+    with open(versionfilepath, 'w+') as f:
+        f.write(git_rev_parse() + '\n')
+        f.write(git_diff() + '\n')
+
+    # Number of parallel processes, for dry run it is automatically set to 1
+    if not args.dry:
+        ncores = args.ncores
+    else:
+        ncores = 1
+
+    for jobidx in range(ncores):
         proc = multiprocessing.Process(target=run_chunk, args=(event_chunks[jobidx], jobidx, outdir, logdir, args))
         proc.start()
         processes.append(proc)
