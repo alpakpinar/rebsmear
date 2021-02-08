@@ -1,13 +1,15 @@
+#!/usr/bin/env python
+
 import os
 import time
 import argparse
 import multiprocessing
 import numpy as np
-from numpy.lib.function_base import extract
+import uproot
 import ROOT as r
 r.gSystem.Load('libRooFit')
 
-import uproot
+from numpy.lib.function_base import extract
 from bucoffea.helpers.git import git_rev_parse, git_diff
 from rebalance import Jet, RebalanceWSFactory
 from matplotlib import pyplot as plt
