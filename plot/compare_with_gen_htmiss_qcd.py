@@ -21,7 +21,6 @@ def parse_cli():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', help='Path to root file containing distributions from rebalancing.')
     parser.add_argument('--coffea', help='Path to coffea accumulator containing distributions from QCD MC.')
-    parser.add_argument('--compare_with_fullacc', help='Compare with the distribution from full accumulator.', action='store_true')
     args = parser.parse_args()
     return args
 
@@ -115,6 +114,7 @@ def comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, logy=False
     ht_bins_for_prior = [
         '700_to_900',
         '900_to_1300',
+        '1300_to_2000',
     ]
 
     def label_for_htbin(htbin):
@@ -133,13 +133,14 @@ def comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, logy=False
 
     new_labels = [
         'GEN $H_T^{miss}$ from QCD MC \n($700 < H_T < 1000 \ GeV$, single tree)',
-        'GEN $H_T^{miss}$ from QCD MC \n($700 < H_T < 1000 \ GeV$, all trees combined)',
+        # 'GEN $H_T^{miss}$ from QCD MC \n($700 < H_T < 1000 \ GeV$, all trees combined)',
     ]
 
     handles, labels = ax.get_legend_handles_labels()
+    new_label = 'GEN $H_T^{miss}$ from QCD MC \n($700 < H_T < 1000 \ GeV$, single tree)'
     for idx, (handle, label) in enumerate(zip(handles, labels)):
         if label == 'None':
-            handle.set_label(new_labels[idx-2])
+            handle.set_label(new_label)
 
     ax.legend(handles=handles)
     ax.set_ylabel('Normalized Yields')
@@ -171,12 +172,12 @@ def main():
     acc = load(coffeapath)
 
     # Accumulator with the whole set of trees for 700 < HT < 1000
-    if args.compare_with_fullacc:
-        acc_large = dir_archive('./input/merged_2021-02-03_qcd_test_HT-700_to_1000')
-        acc_large.load('sumw')
-        acc_large.load('sumw2')
-    else:
-        acc_large = None
+    # if args.compare_with_fullacc:
+    #     acc_large = dir_archive('./input/merged_2021-02-03_qcd_test_HT-700_to_1000')
+    #     acc_large.load('sumw')
+    #     acc_large.load('sumw2')
+    # else:
+    #     acc_large = None
 
     filetag = re.findall('HT\d+to\d+', coffeapath)[0]
 
@@ -187,8 +188,8 @@ def main():
     compare_with_genhtmiss_dist(acc, distribution, jobtag, filetag, inputrootfile, logy=True)
 
     # Compare priors with GEN-level HTmiss we obtain
-    comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, acc_large=acc_large)
-    comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, logy=True, acc_large=acc_large)
+    comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, acc_large=None)
+    comopare_prior_with_genhtmiss(acc, distribution, jobtag, filetag, logy=True, acc_large=None)
 
 if __name__ == '__main__':
     main()
