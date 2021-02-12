@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import re
 import time
 import argparse
 import multiprocessing
@@ -10,6 +11,7 @@ import ROOT as r
 r.gSystem.Load('libRooFit')
 
 from numpy.lib.function_base import extract
+from multiprocessing import Pool
 from helpers.git import git_rev_parse, git_diff
 from rebalance import Jet, RebalanceWSFactory, JERLookup
 from matplotlib import pyplot as plt
@@ -51,37 +53,48 @@ def divide_into_chunks(args):
     event_chunks = []
 
     for idx in range(nchunks-1):
-        event_chunks.append(
-            range(eventchunksize*idx, eventchunksize*(idx+1))
+        event_chunks.append({
+            'chunk'       : range(eventchunksize*idx, eventchunksize*(idx+1)),
+            'nchunk'      : range(eventchunksize*idx, eventchunksize*(idx+1)),
+            'outdir'      : outdir,
+            'logdir'      : logdir,
+            'filepath'    : args.inpath,
+            'constantJER' : args.constantjer,
+            }
         )
 
     # The last chunk
     remainder = nevents % eventchunksize
-    event_chunks.append(
-        range(eventchunksize*(nchunks-1), eventchunksize*(nchunks-1) + remainder)
+    event_chunks.append({
+        'chunk'       : range(eventchunksize*(nchunks-1), eventchunksize*(nchunks-1) + remainder),
+        'nchunk'      : nchunks-1,
+        'outdir'      : outdir,
+        'logdir'      : logdir,
+        'filepath'    : args.inpath,
+        'constantJER' : args.constantjer,
+        }
     )
 
     return event_chunks
 
-def run_chunk(event_chunk, nchunk, outdir, logdir, args, do_print=False):
+def run_chunk(chunk_data):
     '''Run rebalancing for chunks of events in the given event chunk.'''
     # Record the running time
     starttime = time.time()
 
-    # Read the input file
-    infile = uproot.open(args.inpath)
+    # Extract the data
+    event_chunk = chunk_data['chunk']
+    nchunk = chunk_data['nchunk']
+    outdir = chunk_data['outdir']
+    logdir = chunk_data['logdir']
 
-    jobname = args.jobname
+    # Read the input file
+    infile = uproot.open(chunk_data['filepath'])
+
     # Output ROOT file for this event chunk
     f=r.TFile(pjoin(outdir, f"ws_eventchunk_{nchunk}.root"),"RECREATE")
 
-    # Test run
-    if args.dry:
-        # Run over first 10 events only
-        numevents = 10
-        event_chunk = range(10*nchunk,10*(nchunk+1))
-    else:
-        numevents = event_chunk.stop - event_chunk.start
+    numevents = event_chunk.stop - event_chunk.start
 
     # Log file for this event chunk
     logf = pjoin(logdir, f'log_eventchunk_{nchunk}.txt')
@@ -103,15 +116,13 @@ def run_chunk(event_chunk, nchunk, outdir, logdir, args, do_print=False):
         rbwsfac = RebalanceWSFactory(jets)
         # JER source, initiate the object and specify the JER input
         jer_evaluator = JERLookup()
-        if args.constantjer is None:
+        if chunk_data['constantJER'] is None:
             jer_evaluator.from_th1("./input/jer.root","jer_data")
         else:
             jer_evaluator.from_constant(args.constantjer)
         rbwsfac.set_jer_evaluator(jer_evaluator)
         rbwsfac.build()
         ws = rbwsfac.get_ws()
-        if do_print:
-            ws.Print("v")
 
         f.cd()
         ws.Write(f'before_{event}')
@@ -138,15 +149,17 @@ def main():
     if not args.inpath:
         raise RuntimeError('Please provide an input ROOT file.')
 
-    event_chunks = divide_into_chunks(args)
-    nchunks = len(event_chunks)
-
     outdir = f'./output/{args.jobname}'
 
     # If directory already exists, do not overwrite, append an additional index
     jobcount = 2
     while os.path.exists(outdir):
-        outdir = f'{outdir}_{jobcount}'
+        jobnumber = re.findall("run(_\d)", outdir)
+        if len(jobnumber) == 0:
+            outdir = f'{outdir}_2'
+        else:
+            outdir_basename = re.sub(jobnumber[0], "", outdir)
+            outdir = f'{outdir_basename}_{jobcount}'
         jobcount += 1
 
     logdir = pjoin(outdir, 'logs')
@@ -154,7 +167,20 @@ def main():
     os.makedirs(outdir)
     os.makedirs(logdir)
 
-    processes = []
+    if not args.dry:
+        event_chunks = divide_into_chunks(args, outdir, logdir)
+    # Test mode, run over first 10 events
+    else:
+        event_chunks = [{
+            'chunk'       : range(0,10),
+            'nchunk'      : 0,
+            'outdir'      : outdir,
+            'logdir'      : logdir,
+            'filepath'    : args.inpath,
+            'constantJER' : args.constantjer,
+        }]
+    
+    nchunks = len(event_chunks)
 
     # Save repo information for this job
     versionfilepath = pjoin(outdir, 'version.txt')
@@ -162,19 +188,16 @@ def main():
         f.write(git_rev_parse() + '\n')
         f.write(git_diff() + '\n')
 
-    # Number of parallel processes, for dry run it is automatically set to 1
+    # Number of cores to use, for dry run it is automatically set to 1
     if not args.dry:
         ncores = args.ncores
     else:
         ncores = 1
 
-    for jobidx in range(ncores):
-        proc = multiprocessing.Process(target=run_chunk, args=(event_chunks[jobidx], jobidx, outdir, logdir, args))
-        proc.start()
-        processes.append(proc)
+    p = Pool(ncores)
 
-    for process in processes:
-        process.join()
-
+    res = p.map_async(run_chunk, event_chunks)
+    res.wait()
+    
 if __name__ == "__main__":
     main()
