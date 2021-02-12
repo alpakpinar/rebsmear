@@ -27,6 +27,7 @@ def parse_cli():
     parser.add_argument('--chunksize', help='Number of events for each chunk.', type=int, default=2500)
     parser.add_argument('--dry', help='Dry run, runs over 10 events.', action='store_true')
     parser.add_argument('--ncores', help='Number of cores to use, default is 4.', type=int, default=4)
+    parser.add_argument('--nevents', help='Number of events to run on, default is the number of events in the given input file.', type=int, default=None)
     parser.add_argument('--constantjer', help='Placeholder Gaussian width for JER (for testing).', type=float, default=None)
     args = parser.parse_args()
     return args
@@ -40,22 +41,32 @@ def read_jets(event, infile, ptmin=30, absetamax=5.0):
     # Return jet collection with pt/eta cuts (if provided)
     return [Jet(pt=ipt, phi=iphi, eta=ieta) for ipt, iphi, ieta in zip(pt, phi, eta) if ( (ipt > ptmin) and (np.abs(ieta) < absetamax) ) ]
 
-def divide_into_chunks(args):
+def divide_into_chunks(args, outdir, logdir):
     '''Divide the number of events in the input file into given chunk sizes.'''
     # Read the input file
     infile = uproot.open(args.inpath)
 
     eventchunksize = args.chunksize
 
-    nevents = len(infile['Events'])
+    nevents_in_file = len(infile['Events'])
+
+    if args.nevents is not None:
+        # Check that the number of events argument provided is within the bounds of the input file
+        if args.nevents > nevents_in_file:
+            raise RuntimeError(f'Do not have {args.nevents} events in {args.inpath}')
+        nevents = args.nevents
+    else:
+        nevents = nevents_in_file
+
     nchunks = nevents // eventchunksize + 1
 
     event_chunks = []
 
+    # Fill in the chunks, together with relevant information
     for idx in range(nchunks-1):
         event_chunks.append({
             'chunk'       : range(eventchunksize*idx, eventchunksize*(idx+1)),
-            'nchunk'      : range(eventchunksize*idx, eventchunksize*(idx+1)),
+            'nchunk'      : idx,
             'outdir'      : outdir,
             'logdir'      : logdir,
             'filepath'    : args.inpath,
@@ -65,15 +76,16 @@ def divide_into_chunks(args):
 
     # The last chunk
     remainder = nevents % eventchunksize
-    event_chunks.append({
-        'chunk'       : range(eventchunksize*(nchunks-1), eventchunksize*(nchunks-1) + remainder),
-        'nchunk'      : nchunks-1,
-        'outdir'      : outdir,
-        'logdir'      : logdir,
-        'filepath'    : args.inpath,
-        'constantJER' : args.constantjer,
-        }
-    )
+    if remainder != 0:
+        event_chunks.append({
+            'chunk'       : range(eventchunksize*(nchunks-1), eventchunksize*(nchunks-1) + remainder),
+            'nchunk'      : nchunks-1,
+            'outdir'      : outdir,
+            'logdir'      : logdir,
+            'filepath'    : args.inpath,
+            'constantJER' : args.constantjer,
+            }
+        )
 
     return event_chunks
 
