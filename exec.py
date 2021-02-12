@@ -11,7 +11,7 @@ r.gSystem.Load('libRooFit')
 
 from numpy.lib.function_base import extract
 from helpers.git import git_rev_parse, git_diff
-from rebalance import Jet, RebalanceWSFactory
+from rebalance import Jet, RebalanceWSFactory, JERLookup
 from matplotlib import pyplot as plt
 from datetime import date
 from pprint import pprint
@@ -25,7 +25,7 @@ def parse_cli():
     parser.add_argument('--chunksize', help='Number of events for each chunk.', type=int, default=2500)
     parser.add_argument('--dry', help='Dry run, runs over 10 events.', action='store_true')
     parser.add_argument('--ncores', help='Number of cores to use, default is 4.', type=int, default=4)
-    parser.add_argument('--dummyjer', help='Placeholder Gaussian width for JER (for testing).', type=float, default=None)
+    parser.add_argument('--constantjer', help='Placeholder Gaussian width for JER (for testing).', type=float, default=None)
     args = parser.parse_args()
     return args
 
@@ -101,7 +101,13 @@ def run_chunk(event_chunk, nchunk, outdir, logdir, args, do_print=False):
 
         jets = read_jets(event, infile)
         rbwsfac = RebalanceWSFactory(jets)
-        rbwsfac.set_jer_source("./input/jer.root","jer_data",args.dummyjer)
+        # JER source, initiate the object and specify the JER input
+        jer_evaluator = JERLookup()
+        if args.constantjer is None:
+            jer_evaluator.from_th1("./input/jer.root","jer_data")
+        else:
+            jer_evaluator.from_constant(args.constantjer)
+        rbwsfac.set_jer_evaluator(jer_evaluator)
         rbwsfac.build()
         ws = rbwsfac.get_ws()
         if do_print:
@@ -136,11 +142,14 @@ def main():
     nchunks = len(event_chunks)
 
     outdir = f'./output/{args.jobname}'
-    logdir = f'./output/{args.jobname}/logs'
 
-    # Do not allow to override an existing job output directory
-    if os.path.exists(outdir):
-        raise RuntimeError(f'Output directory exists: {outdir}, please remove it first.')
+    # If directory already exists, do not overwrite, append an additional index
+    jobcount = 2
+    while os.path.exists(outdir):
+        outdir = f'{outdir}_{jobcount}'
+        jobcount += 1
+
+    logdir = pjoin(outdir, 'logs')
 
     os.makedirs(outdir)
     os.makedirs(logdir)
