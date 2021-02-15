@@ -90,8 +90,22 @@ class HistoSF2D():
     def __call__(self,x,y):
         return self.evaluate(x,y)
 
+class ConstantJER():
+    def __init__(self, constant_value):
+        self.constant_value = constant_value
+
+    def evaluate(self, x, y):
+        return self.constant_value
+
+    def __call__(self,x,y):
+        return self.evaluate(x,y)
+
 class JERLookup():
-    def __init__(self, filepath, histogram_name):
+    def __init__(self):
+        pass
+
+    def from_th1(self, filepath, histogram_name):
+        '''Set input TH1 histogram for JER evaluation.'''
         f = r.TFile(filepath)
         if not f:
             raise IOError(f"Could not open file: '{filepath}'")
@@ -103,10 +117,12 @@ class JERLookup():
         h.SetDirectory(0)
         self._evaluator = HistoSF2D(h)
 
+    def from_constant(self, constant_value):
+        '''Set constant sigma value for JER evaluation.'''
+        self._evaluator = ConstantJER(constant_value)
+
     def get_jer(self, pt, eta):
         return self._evaluator(pt, np.abs(eta))
-
-
 
 class RebalanceWSFactory(NamingMixin):
     '''
@@ -125,8 +141,8 @@ class RebalanceWSFactory(NamingMixin):
         self._wsimp = getattr(self.ws, 'import')
         self._jer_evaluator = None
         self._directions = 'pt','phi'
-    def set_jer_source(self,filepath, histogram_name):
-        self._jer_evaluator = JERLookup(filepath, histogram_name)
+    def set_jer_evaluator(self,jer_evaluator):
+        self._jer_evaluator = jer_evaluator
 
     def get_ws(self):
         return self.ws
