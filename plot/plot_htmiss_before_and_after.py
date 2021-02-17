@@ -7,6 +7,7 @@ import glob
 import uproot
 import ROOT as r
 import mplhep as hep
+import matplotlib.colors as colors
 from matplotlib import pyplot as plt
 from coffea.util import load
 from coffea import hist
@@ -66,6 +67,47 @@ def save_htmiss_before_and_after(infiles, outdir):
     print(f'Histograms saved to: {outpath}')
     return outpath
 
+def save_htmiss_before_and_after_2d(infiles, outdir):
+    '''Plot 2D HTmiss histogram, specifying HTmiss in events before and after rebalancing.'''
+    h = r.TH2F('htmiss_2d_before_after', r'$H_T^{miss} \ (GeV)$', 50, 0, 500, 50, 0, 500)
+
+    for infile in infiles:
+        print(f'Reading events from file: {infile}')
+        f = r.TFile(infile)
+
+        keys = f.GetListOfKeys()
+
+        events_before = [e.GetName() for e in keys if e.GetName().startswith('before')]
+        events_after = [e.GetName() for e in keys if e.GetName().startswith('rebalanced')]
+        assert(len(events_before) == len(events_after))
+        nevents = len(events_before)
+
+        for idx in range(nevents):
+            totalnumevents = nevents-1
+            if idx % 100 == 0 and idx > 0:
+                print(f'Reading entry: {idx}/{totalnumevents} ({idx / totalnumevents * 100:.2f}%)', end='\r')
+            
+            ws_before = f.Get(events_before[idx])
+            ws_after = f.Get(events_after[idx])
+            # Extract the HTmiss value  out of the workspace
+            htmiss_before = ws_before.function(htmiss_func_name()).getValV()
+            htmiss_after = ws_after.function(htmiss_func_name()).getValV()
+
+            h.Fill(htmiss_before, htmiss_after)
+    
+    # Once we're done filling the histogram with save it to a new ROOT file
+    outpath = pjoin(outdir, 'htmiss_after_reb.root')
+    if os.path.exists(outpath):
+        outf = r.TFile(outpath, 'UPDATE')
+    else:
+        raise RuntimeError(f'File does not exist: {outpath}')
+
+    outf.cd()
+    h.Write()
+
+    print(f'Histograms saved to: {outpath}')
+    return outpath
+
 def plot_htmiss_before_and_after(outdir, infile, dataset_tag='jetht', plot_gen=True):
     '''Do the actual plotting of distributions.'''
     f = uproot.open(infile)
@@ -114,6 +156,31 @@ def plot_htmiss_before_and_after(outdir, infile, dataset_tag='jetht', plot_gen=T
     plt.close(fig)
     print(f'File saved: {outpath}')
 
+def plot_htmiss_before_and_after_2d(outdir, infile, dataset_tag='jetht'):
+    '''Plot 2D HTmiss before and after histogram.'''
+    f = uproot.open(infile)
+    h = f['htmiss_2d_before_after']
+
+    fig, ax = plt.subplots()
+    pc = ax.pcolormesh(h.edges[0], h.edges[1], h.values.T, norm=colors.LogNorm(1e0,1e3))
+
+    fig.colorbar(pc, ax=ax, label='Counts')
+
+    ax.set_xlabel(r'$H_T^{miss} \ (GeV)$ (before)', fontsize=14)
+    ax.set_ylabel(r'$H_T^{miss} \ (GeV)$ (after)', fontsize=14)
+    
+    ax.text(0., 1., f'{tag_to_plottag(dataset_tag)} 2017',
+        fontsize=14,
+        ha='left',
+        va='bottom',
+        transform=ax.transAxes
+    )
+
+    outpath = pjoin(outdir, f'htmiss_before_after_reb_2d.pdf')
+    fig.savefig(outpath)
+    plt.close(fig)
+    print(f'File saved: {outpath}')
+
 def main():
     # Point the script to the directory containing the workspace files
     inpath = sys.argv[1]
@@ -132,12 +199,16 @@ def main():
     else:
         os.makedirs(outdir)
         outputrootpath = save_htmiss_before_and_after(infiles, outdir)
+        save_htmiss_before_and_after_2d(infiles, outdir)
 
     dataset_tag = 'jetht' if re.match('.*[Jj]et[Hh][Tt].*', inpath) else 'qcd'
 
     # From the ROOT file created in previous step, plot the distributions
     # (uproot and matplotlib in the house)
     plot_htmiss_before_and_after(outdir, outputrootpath, dataset_tag)
+
+    # Fill and plot 2D HTmiss before and after histogram
+    plot_htmiss_before_and_after_2d(outdir, outputrootpath, dataset_tag)
 
 if __name__ == '__main__':
     main()
