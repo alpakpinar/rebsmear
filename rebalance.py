@@ -193,7 +193,7 @@ class RebalanceWSFactory(NamingMixin):
     def _build_likelihood(self):
         partial_pdf_names = [
             self._name_total_prior_pdf(),
-            self._name_combined_momentum_pdf()
+            # self._name_combined_momentum_pdf()
         ]
         partial_pdfs = [self.ws.function(x) for x in partial_pdf_names]
 
