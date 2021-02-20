@@ -49,10 +49,11 @@ def dump_high_htmiss_events(inpath, htmiss_thresh=200):
         f.cd()
         for ijet in range(njets):
             ptname = 'reco_pt_' + str(ijet)
+            ptname_after = 'gen_pt_' + str(ijet)
             phiname = 'reco_phi_' + str(ijet)
 
             pt_before = event_bef.var(ptname).getValV()
-            pt_after = event_reb.var(ptname).getValV()
+            pt_after = event_reb.var(ptname_after).getValV()
             phi = event_bef.var(phiname).getValV()
 
             jet_pt_before.append(pt_before)
