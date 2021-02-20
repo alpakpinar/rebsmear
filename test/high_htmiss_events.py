@@ -12,7 +12,9 @@ def htmiss_func_name():
 def ht_func_name():
     return 'gen_ht'
 
-def dump_high_htmiss_events(f, htmiss_thresh=200):
+def dump_high_htmiss_events(inpath, htmiss_thresh=200):
+    f = r.TFile(inpath, 'READ')
+
     keys = f.GetListOfKeys()
     events_bef = [key.GetName() for key in keys if key.GetName().startswith('before')]
     events_reb = [key.GetName() for key in keys if key.GetName().startswith('rebalanced')]
@@ -20,7 +22,6 @@ def dump_high_htmiss_events(f, htmiss_thresh=200):
     nevents = len(events_bef)
 
     print(f'Processing file, number of events:  {nevents}')
-    print('='*20)
 
     num_events_with_highhtmiss = 0
 
@@ -40,6 +41,35 @@ def dump_high_htmiss_events(f, htmiss_thresh=200):
         ht_bef = event_bef.function( ht_func_name() ).getValV()
         ht_reb = event_reb.function( ht_func_name() ).getValV()
 
+        # Jet information
+        njets = int(event_bef.var('njets').getValV())
+        # Get jet pt and phi
+        jet_pt_before, jet_pt_after = [], []
+        jet_phi = []
+        f.cd()
+        for ijet in range(njets):
+            ptname = 'reco_pt_' + str(ijet)
+            phiname = 'reco_phi_' + str(ijet)
+
+            pt_before = event_bef.var(ptname).getValV()
+            pt_after = event_reb.var(ptname).getValV()
+            phi = event_bef.var(phiname).getValV()
+
+            jet_pt_before.append(pt_before)
+            jet_pt_after.append(pt_after)
+            jet_phi.append(phi)
+
+        print('='*20)
+        print(f'Number of jets: {njets}')
+        for idx in range(len(jet_phi)):
+            print('-'*20)
+            print(f'Jet {idx}')
+            print(f'Jet pt before: {jet_pt_before[idx]:.3f}')
+            print(f'Jet pt after: {jet_pt_after[idx]:.3f}')
+            print(f'Jet phi: {jet_phi[idx]:.3f}')
+
+        print('-'*20)
+
         print(f'HTmiss before: {htmiss_bef:.3f}')
         print(f'HTmiss after: {htmiss_reb:.3f}')
         print(f'HT before: {ht_bef:.3f}')
@@ -55,9 +85,8 @@ def dump_high_htmiss_events(f, htmiss_thresh=200):
 def main():
     # Input workspace file
     inpath = sys.argv[1]
-    f = r.TFile(inpath, 'READ')
 
-    dump_high_htmiss_events(f)
+    dump_high_htmiss_events(inpath)
 
 if __name__ == '__main__':
     main()
