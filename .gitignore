@@ -1,5 +1,5 @@
 __pycache__/
 output/
-input/tree*.root
-input/
+input/*tree*.root
+plot/input
 nohup.out
