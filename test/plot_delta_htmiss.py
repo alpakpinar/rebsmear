@@ -12,8 +12,41 @@ from glob import glob
 
 pjoin = os.path.join
 
+def make_plot(l, bins, xlabel, htmiss_thresh, distribution, outtag):
+    fig, ax = plt.subplots()
+    ax.hist(l, bins=bins)
+
+    ax.set_xlabel(xlabel)
+
+    ax.text(0., 1., f'$H_T^{{miss}} > {htmiss_thresh} \\ GeV$ (before reb.)',
+        fontsize=14,
+        ha='left',
+        va='bottom',
+        transform=ax.transAxes
+    )
+
+    ax.text(1., 1., 'QCD MC',
+        fontsize=14,
+        ha='right',
+        va='bottom',
+        transform=ax.transAxes
+    )
+
+    outdir = f'./output/{outtag}'
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    outpath = pjoin(outdir, f'{distribution}_thresh_{htmiss_thresh}.pdf')
+    fig.savefig(outpath)
+    plt.close(fig)
+
+    print(f'File saved: {outpath}')
+
 def plot_delta_htmiss(infiles, outtag, htmiss_thresh=150):
     difflist = []
+    # Store number of jets for events where we have low and high delta HTmiss
+    njets_low_deltahtmiss = []
+    njets_high_deltahtmiss = []
+    
     for inpath in infiles:
         f = r.TFile(inpath, 'READ')
 
@@ -44,36 +77,34 @@ def plot_delta_htmiss(infiles, outtag, htmiss_thresh=150):
 
             difflist.append(diff)
 
+            njets = ws_bef.var('njets').getValV()
+
+            if diff < 80:
+                njets_low_deltahtmiss.append(njets)
+            else:
+                njets_high_deltahtmiss.append(njets)
+
     # Plot the distribution from all files
     htbins = np.arange(10,310,10)
+    h, edges = np.histogram(difflist, bins=htbins)
 
-    fig, ax = plt.subplots()
-    ax.hist(difflist, bins=htbins)
+    make_plot(difflist, htbins, 
+        xlabel=r'$\Delta H_T^{miss}$ (GeV)',
+        htmiss_thresh=htmiss_thresh,
+        distribution='deltahtmiss',
+        outtag=outtag
+        )
 
-    ax.set_xlabel(r'$\Delta H_T^{miss}$ (GeV)')
+    outf = uproot.recreate('out.root')
+    outf['deltahtmiss'] = (h, edges)
 
-    ax.text(0., 1., f'$H_T^{{miss}} > {htmiss_thresh} \\ GeV$ (before reb.)',
-        fontsize=14,
-        ha='left',
-        va='bottom',
-        transform=ax.transAxes
-    )
+    # Save number of jets for the two cases
+    njetsbins = np.arange(0.5,10.5)
+    h_lowdelta, edges = np.histogram(njets_low_deltahtmiss, bins=njetsbins)
+    h_highdelta, edges = np.histogram(njets_high_deltahtmiss, bins=njetsbins)
 
-    ax.text(1., 1., 'QCD MC',
-        fontsize=14,
-        ha='right',
-        va='bottom',
-        transform=ax.transAxes
-    )
-
-    outdir = f'./output/{outtag}'
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-    outpath = pjoin(outdir, f'deltahtmiss_thresh_{htmiss_thresh}.pdf')
-    fig.savefig(outpath)
-    plt.close(fig)
-
-    print(f'File saved: {outpath}')
+    outf['njets_lowdeltahtmiss'] = (h_lowdelta, edges)
+    outf['njets_highdeltahtmiss'] = (h_highdelta, edges)
 
 def main():
     inpath = sys.argv[1]
