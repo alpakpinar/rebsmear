@@ -29,6 +29,7 @@ def parse_cli():
     parser.add_argument('--ncores', help='Number of cores to use, default is 4.', type=int, default=4)
     parser.add_argument('--nevents', help='Number of events to run on, default is the number of events in the given input file.', type=int, default=None)
     parser.add_argument('--constantjer', help='Placeholder Gaussian width for JER (for testing).', type=float, default=None)
+    parser.add_argument('--ptmin', help='Minimum jet pt to be considered in rebalancing, default is 30 GeV.', type=float, default=30.)
     args = parser.parse_args()
     return args
 
@@ -71,6 +72,7 @@ def divide_into_chunks(args, outdir, logdir):
             'logdir'      : logdir,
             'filepath'    : args.inpath,
             'constantJER' : args.constantjer,
+            'ptmin'       : args.ptmin,
             }
         )
 
@@ -84,6 +86,7 @@ def divide_into_chunks(args, outdir, logdir):
             'logdir'      : logdir,
             'filepath'    : args.inpath,
             'constantJER' : args.constantjer,
+            'ptmin'       : args.ptmin,
             }
         )
 
@@ -124,7 +127,7 @@ def run_chunk(chunk_data):
                 logfile.write(f'Processing event: {event}\n')
                 logfile.write(f'Time passed: {time.time() - starttime:.2f} sec\n')
 
-        jets = read_jets(event, infile)
+        jets = read_jets(event, infile, ptmin=chunk_data['ptmin'])
         rbwsfac = RebalanceWSFactory(jets)
         # JER source, initiate the object and specify the JER input
         jer_evaluator = JERLookup()
@@ -190,6 +193,7 @@ def main():
             'logdir'      : logdir,
             'filepath'    : args.inpath,
             'constantJER' : args.constantjer,
+            'ptmin'       : args.ptmin,
         }]
     
     nchunks = len(event_chunks)
