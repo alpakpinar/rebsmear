@@ -43,7 +43,7 @@ def plot_jet_kinematics(inpath, deltahtmiss_thresh=80):
         # Get jet kinematic values
         for ijet in range(njets):
             jet_phi = ws_bef.var('reco_phi_'+str(ijet)).getValV()
-            jet_eta = ws_bef.var('reco_eta_'+ijet).getValV()
+            jet_eta = ws_bef.var('reco_eta_'+str(ijet)).getValV()
 
             # Leading jet
             if ijet == 0:
