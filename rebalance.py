@@ -481,6 +481,23 @@ class RebalanceWSFactory(NamingMixin):
             lim = max(2*abs(central_value), 100)
             return (-lim, lim)
 
+    def _build_single_jet_eta_vars(self, index):
+        '''
+        Defines RooRealVars for reco eta of a single jet.
+        '''
+        jet = self.get_jet(index)
+        central_value = getattr(jet, 'eta')
+
+        name_var = self._name_reco_momentum_var(direction='eta', index=index)
+
+        reco_eta = r.RooRealVar(
+            name_var,
+            name_var,
+            central_value
+        )
+
+        self._wsimp(reco_eta)
+
     def _build_single_jet_momentum_vars(self, direction, index):
         '''
         Defines RooRealVars for gen and reco momenta for a given momentum direction and jet index.
@@ -534,6 +551,7 @@ class RebalanceWSFactory(NamingMixin):
         for direction in self._directions:
             gen_var, reco_var = self._build_single_jet_momentum_vars(direction, index)
             self._build_single_jet_momentum_pdf(gen_var, reco_var, direction, index)
+        self._build_single_jet_eta_vars(index)
 
     def _build_single_jet_momentum_pdf(self, gen_var, reco_var, direction, index):
         '''
