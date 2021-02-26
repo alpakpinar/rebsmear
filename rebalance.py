@@ -134,10 +134,11 @@ class RebalanceWSFactory(NamingMixin):
     factory = RebalanceWSFactory(jets)
     factory.build()
     '''
-    def __init__(self,jets):
+    def __init__(self,jets,pt_thresh=30):
         self.jets = jets
         self.njets = len(jets)
         self.ws = r.RooWorkspace()
+        self.pt_thresh = pt_thresh
         self._wsimp = getattr(self.ws, 'import')
         self._jer_evaluator = None
         self._directions = 'pt','phi'
@@ -255,10 +256,16 @@ class RebalanceWSFactory(NamingMixin):
             var_name_phi = self._name_gen_momentum_var('phi', index)
             variables.append(self.ws.var(var_name_phi))
             variables.append(self.ws.var(var_name_pt))
+
+            # When calculating HTmiss, skip the jets below the pt threshold
+            jpt = self.ws.var(var_name_pt).getValV()
+            if jpt < self.pt_thresh:
+                continue
+
             expression_parts_x.append(f'{var_name_pt} * cos({var_name_phi})')
             expression_parts_y.append(f'{var_name_pt} * sin({var_name_phi})')
-        args = make_RooArgList(variables)
 
+        args = make_RooArgList(variables)
         name_px = self._name_partial_gen_htmiss_variable("px")
         expression_x = '+'.join(expression_parts_x)
         htmiss_px_variable = r.RooFormulaVar(
