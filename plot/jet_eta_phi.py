@@ -43,18 +43,20 @@ def plot_jet_kinematics(inpath, deltahtmiss_thresh=80):
         # Get jet kinematic values
         for ijet in range(njets):
             jet_phi = ws_bef.var('reco_phi_'+str(ijet)).getValV()
-            # jet_eta = ws_bef.var('reco_eta_'+ijet).getValV()
+            jet_eta = ws_bef.var('reco_eta_'+ijet).getValV()
 
             # Leading jet
             if ijet == 0:
                 h_jet_phi0.Fill(jet_phi)
+                h_jet_eta0.Fill(jet_eta)
                 
             # Trailing jet
             elif ijet == 1:
                 h_jet_phi1.Fill(jet_phi)
+                h_jet_eta1.Fill(jet_eta)
 
             h_jet_phi.Fill(jet_phi)
-            # h_jet_eta.Fill(jet_eta)
+            h_jet_eta.Fill(jet_eta)
 
     outf.cd()
     outf.Write()
