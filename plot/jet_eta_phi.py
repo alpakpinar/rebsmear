@@ -18,7 +18,10 @@ h_jet_eta = r.TH1F('ak4_eta', r'Jet $\eta$', 50, 0, 5)
 h_jet_eta0 = r.TH1F('ak4_eta0', r'Leading jet $\eta$', 50, 0, 5)
 h_jet_eta1 = r.TH1F('ak4_eta1', r'Trailing jet $\eta$', 50, 0, 5)
 
-def plot_jet_kinematics(inpath, deltahtmiss_thresh=80):
+h_htmiss_bef = r.TH1F('htmiss_bef', r'H_T^{miss}', 50, 0, 500)
+h_htmiss_reb = r.TH1F('htmiss_reb', r'H_T^{miss}', 50, 0, 500)
+
+def plot_jet_kinematics(inpath, htmiss_bef_thresh=120, deltahtmiss_thresh=80):
     f = r.TFile(inpath, 'READ')
     events_before = [key.GetName() for key in f.GetListOfKeys() if key.GetName().startswith('before')] 
     events_after = [key.GetName() for key in f.GetListOfKeys() if key.GetName().startswith('rebalanced')]
@@ -33,6 +36,10 @@ def plot_jet_kinematics(inpath, deltahtmiss_thresh=80):
 
         htmiss_bef = ws_bef.function('gen_htmiss_pt').getValV()
         htmiss_reb = ws_reb.function('gen_htmiss_pt').getValV()
+
+        # Take events statring with relatively high HTmiss
+        if htmiss_bef < htmiss_bef_thresh:
+            continue
 
         delta_htmiss = np.abs(htmiss_bef - htmiss_reb)
         if delta_htmiss > deltahtmiss_thresh:
@@ -57,6 +64,9 @@ def plot_jet_kinematics(inpath, deltahtmiss_thresh=80):
 
             h_jet_phi.Fill(jet_phi)
             h_jet_eta.Fill(jet_eta)
+
+            h_htmiss_bef.Fill(htmiss_bef)
+            h_htmiss_reb.Fill(htmiss_reb)
 
     outf.cd()
     outf.Write()
