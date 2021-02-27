@@ -18,6 +18,8 @@ def get_xlabel(distribution):
         'ak4_eta' : r'All Jet $\eta$',
         'ak4_eta0' : r'Leading Jet $\eta$',
         'ak4_eta1' : r'Trailing Jet $\eta$',
+        'htmiss_bef'  : r'$H_T^{miss} \ (GeV)$ (before reb.)',
+        'htmiss_reb'  : r'$H_T^{miss} \ (GeV)$ (after reb.)',
     }
 
     return mapping[distribution]
@@ -33,7 +35,7 @@ def plot_jet_eta_phi(f, distribution):
     ax.set_xlabel(get_xlabel(distribution))
 
     delta_htmiss_thresh=80
-    ax.text(0., 1., f'$\Delta H_T^{{miss}} > {delta_htmiss_thresh}$ GeV',
+    ax.text(0., 1., f'$\Delta H_T^{{miss}} < {delta_htmiss_thresh}$ GeV',
         fontsize=14,
         ha='left',
         va='bottom',
@@ -53,7 +55,7 @@ def main():
     inpath = sys.argv[1]
     f = uproot.open(inpath)
 
-    distributions = ['ak4_phi', 'ak4_phi0', 'ak4_phi1', 'ak4_eta', 'ak4_eta0', 'ak4_eta1']
+    distributions = ['ak4_phi', 'ak4_phi0', 'ak4_phi1', 'ak4_eta', 'ak4_eta0', 'ak4_eta1', 'htmiss_bef', 'htmiss_reb']
 
     for distribution in distributions:
         plot_jet_eta_phi(f, distribution=distribution)
