@@ -127,8 +127,8 @@ def main():
             'high_dhtmiss' : r.TH2F('ak4_eta_phi0_highdhtmiss', r'Leading Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
         },
         'jet_eta_phi1' : {
-            'low_dhtmiss' : r.TH2F('ak4_eta1_phi_lowdhtmiss', r'Trailing Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
-            'high_dhtmiss' : r.TH2F('ak4_eta1_phi_highdhtmiss', r'Trailing Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
+            'low_dhtmiss' : r.TH2F('ak4_eta_phi1_lowdhtmiss', r'Trailing Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
+            'high_dhtmiss' : r.TH2F('ak4_eta_phi1_highdhtmiss', r'Trailing Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
         },
     }
 

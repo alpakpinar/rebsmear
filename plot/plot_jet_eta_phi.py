@@ -67,8 +67,7 @@ def plot_jet_eta_phi_2d(f, outtag, distribution):
     if 'ak4_eta_phi0' in distribution:
         xlabel = r'Leading Jet $\eta$'
         ylabel = r'Leading Jet $\phi$'
-    # TODO: Fix typo...
-    elif ('ak4_eta_phi1' in distribution) or ('ak4_eta1_phi' in distribution):
+    elif 'ak4_eta_phi1' in distribution:
         xlabel = r'Trailing Jet $\eta$'
         ylabel = r'Trailing Jet $\phi$'
     else:
@@ -113,8 +112,8 @@ def main():
         'ak4_eta_phi_highdhtmiss',
         'ak4_eta_phi0_lowdhtmiss',
         'ak4_eta_phi0_highdhtmiss',
-        'ak4_eta1_phi_lowdhtmiss',
-        'ak4_eta1_phi_highdhtmiss',
+        'ak4_eta_phi1_lowdhtmiss',
+        'ak4_eta_phi1_highdhtmiss',
     ]
     for distribution in distributions_2d:
         plot_jet_eta_phi_2d(f, outtag, distribution=distribution)
