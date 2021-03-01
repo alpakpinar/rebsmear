@@ -51,6 +51,46 @@ def plot_jet_eta_phi(f, distribution):
 
     print(f'File saved: {outpath}')
 
+def plot_jet_eta_phi_2d(f, distribution):
+    h = f[distribution]
+
+    fig, ax = plt.subplots()
+    
+    xedges, yedges = h.edges
+    pc = ax.pcolormesh(xedges, yedges, h.values.T)
+    fig.colorbar(pc, ax=ax)
+    fig.set_label("Counts")
+    
+    if distribution == 'ak4_eta_phi0':
+        xlabel = r'Leading Jet $\eta$'
+        ylabel = r'Leading Jet $\phi$'
+    elif distribution == 'ak4_eta_phi1':
+        xlabel = r'Trailing Jet $\eta$'
+        ylabel = r'Trailing Jet $\phi$'
+    elif distribution == 'ak4_eta_phi':
+        xlabel = r'All Jet $\eta$'
+        ylabel = r'All Jet $\phi$'
+
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    delta_htmiss_thresh=80
+    ax.text(0., 1., f'$\Delta H_T^{{miss}} < {delta_htmiss_thresh}$ GeV',
+        fontsize=14,
+        ha='left',
+        va='bottom',
+        transform=ax.transAxes
+    )
+
+    outdir = './output/jet_eta_phi/2d'
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    outpath = pjoin(outdir, f'{distribution}.pdf')
+    fig.savefig(outpath)
+    plt.close(fig)
+
+    print(f'File saved: {outpath}')
+
 def main():
     inpath = sys.argv[1]
     f = uproot.open(inpath)
@@ -59,6 +99,10 @@ def main():
 
     for distribution in distributions:
         plot_jet_eta_phi(f, distribution=distribution)
+
+    # 2D eta vs. phi distributions
+    for distribution in ['ak4_eta_phi', 'ak4_eta_phi0', 'ak4_eta_phi1']:
+        plot_jet_eta_phi_2d(f, distribution=distribution)
 
 if __name__ == '__main__':
     main()
