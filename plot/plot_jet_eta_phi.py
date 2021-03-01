@@ -24,25 +24,28 @@ def get_xlabel(distribution):
 
     return mapping[distribution]
 
-def plot_jet_eta_phi(f, distribution):
-    h = f[distribution]
+def plot_jet_eta_phi(f, outtag, distribution):
+    h_lo = f[f'{distribution}_lowdhtmiss']
+    h_hi = f[f'{distribution}_highdhtmiss']
 
     fig, ax = plt.subplots()
-    hep.histplot(h.values, h.edges, ax=ax)
+    hep.histplot(h_lo.values, h_lo.edges, ax=ax, label=r'$\Delta H_T^{miss} < 80 \ GeV$')
+    hep.histplot(h_hi.values, h_hi.edges, ax=ax, label=r'$\Delta H_T^{miss} > 80 \ GeV$')
 
     ax.set_yscale('log')
     ax.set_ylim(1e-2,1e4)
     ax.set_xlabel(get_xlabel(distribution))
+    ax.legend()
 
-    delta_htmiss_thresh=80
-    ax.text(0., 1., f'$\Delta H_T^{{miss}} < {delta_htmiss_thresh}$ GeV',
+    htmiss_bef_thresh=120
+    ax.text(0., 1., f'$H_T^{{miss}} > {htmiss_bef_thresh}$ GeV (before reb.)',
         fontsize=14,
         ha='left',
         va='bottom',
         transform=ax.transAxes
     )
 
-    outdir = './output/jet_eta_phi'
+    outdir = f'./output/{outtag}'
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outpath = pjoin(outdir, f'{distribution}.pdf')
@@ -51,7 +54,7 @@ def plot_jet_eta_phi(f, distribution):
 
     print(f'File saved: {outpath}')
 
-def plot_jet_eta_phi_2d(f, distribution):
+def plot_jet_eta_phi_2d(f, outtag, distribution):
     h = f[distribution]
 
     fig, ax = plt.subplots()
@@ -61,13 +64,14 @@ def plot_jet_eta_phi_2d(f, distribution):
     fig.colorbar(pc, ax=ax)
     fig.set_label("Counts")
     
-    if distribution == 'ak4_eta_phi0':
+    if 'ak4_eta_phi0' in distribution:
         xlabel = r'Leading Jet $\eta$'
         ylabel = r'Leading Jet $\phi$'
-    elif distribution == 'ak4_eta_phi1':
+    # TODO: Fix typo...
+    elif ('ak4_eta_phi1' in distribution) or ('ak4_eta1_phi' in distribution):
         xlabel = r'Trailing Jet $\eta$'
         ylabel = r'Trailing Jet $\phi$'
-    elif distribution == 'ak4_eta_phi':
+    else:
         xlabel = r'All Jet $\eta$'
         ylabel = r'All Jet $\phi$'
 
@@ -75,14 +79,15 @@ def plot_jet_eta_phi_2d(f, distribution):
     ax.set_ylabel(ylabel)
 
     delta_htmiss_thresh=80
-    ax.text(0., 1., f'$\Delta H_T^{{miss}} < {delta_htmiss_thresh}$ GeV',
+    sgn = '<' if 'low_dhtmiss' in distribution else '>'
+    ax.text(0., 1., f'$\Delta H_T^{{miss}} {sgn} {delta_htmiss_thresh}$ GeV',
         fontsize=14,
         ha='left',
         va='bottom',
         transform=ax.transAxes
     )
 
-    outdir = './output/jet_eta_phi/2d'
+    outdir = f'./output/{outtag}/2d'
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outpath = pjoin(outdir, f'{distribution}.pdf')
@@ -95,14 +100,24 @@ def main():
     inpath = sys.argv[1]
     f = uproot.open(inpath)
 
-    distributions = ['ak4_phi', 'ak4_phi0', 'ak4_phi1', 'ak4_eta', 'ak4_eta0', 'ak4_eta1', 'htmiss_bef', 'htmiss_reb']
+    outtag = inpath.split('/')[-2]
+
+    distributions = ['ak4_phi', 'ak4_phi0', 'ak4_phi1', 'ak4_eta', 'ak4_eta0', 'ak4_eta1']
 
     for distribution in distributions:
-        plot_jet_eta_phi(f, distribution=distribution)
+        plot_jet_eta_phi(f, outtag, distribution=distribution)
 
     # 2D eta vs. phi distributions
-    for distribution in ['ak4_eta_phi', 'ak4_eta_phi0', 'ak4_eta_phi1']:
-        plot_jet_eta_phi_2d(f, distribution=distribution)
+    distributions_2d = [
+        'ak4_eta_phi_lowdhtmiss',
+        'ak4_eta_phi_highdhtmiss',
+        'ak4_eta_phi0_lowdhtmiss',
+        'ak4_eta_phi0_highdhtmiss',
+        'ak4_eta1_phi_lowdhtmiss',
+        'ak4_eta1_phi_highdhtmiss',
+    ]
+    for distribution in distributions_2d:
+        plot_jet_eta_phi_2d(f, outtag, distribution=distribution)
 
 if __name__ == '__main__':
     main()
