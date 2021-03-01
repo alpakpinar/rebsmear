@@ -78,7 +78,7 @@ def plot_jet_eta_phi_2d(f, outtag, distribution):
     ax.set_ylabel(ylabel)
 
     delta_htmiss_thresh=80
-    sgn = '<' if 'low_dhtmiss' in distribution else '>'
+    sgn = '<' if 'lowdhtmiss' in distribution else '>'
     ax.text(0., 1., f'$\Delta H_T^{{miss}} {sgn} {delta_htmiss_thresh}$ GeV',
         fontsize=14,
         ha='left',
