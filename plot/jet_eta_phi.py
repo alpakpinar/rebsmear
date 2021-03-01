@@ -11,12 +11,28 @@ pjoin = os.path.join
 # Output ROOT file
 outf = r.TFile('jet_eta_phi.root', 'RECREATE')
 
-h_jet_phi = r.TH1F('ak4_phi', r'Jet $\phi$', 50, -np.pi, np.pi)
-h_jet_phi0 = r.TH1F('ak4_phi0', r'Leading Jet $\phi$', 50, -np.pi, np.pi)
-h_jet_phi1 = r.TH1F('ak4_phi1', r'Trailing Jet $\phi$', 50, -np.pi, np.pi)
-h_jet_eta = r.TH1F('ak4_eta', r'Jet $\eta$', 50, 0, 5)
-h_jet_eta0 = r.TH1F('ak4_eta0', r'Leading jet $\eta$', 50, 0, 5)
-h_jet_eta1 = r.TH1F('ak4_eta1', r'Trailing jet $\eta$', 50, 0, 5)
+histos = {
+    'jet_phi0' : {
+        'low_dhtmiss' : r.TH1F('ak4_phi0_lowdhtmiss', r'Leading Jet $\phi$', 50, -np.pi, np.pi),
+        'high_dhtmiss' : r.TH1F('ak4_phi0_highdhtmiss', r'Leading Jet $\phi$', 50, -np.pi, np.pi),
+    },
+    'jet_phi1' : {
+        'low_dhtmiss' : r.TH1F('ak4_phi1_lowdhtmiss', r'Trailing Jet $\phi$', 50, -np.pi, np.pi),
+        'high_dhtmiss' : r.TH1F('ak4_phi1_highdhtmiss', r'Trailing Jet $\phi$', 50, -np.pi, np.pi),
+    },
+    'jet_eta0' : {
+        'low_dhtmiss' : r.TH1F('ak4_eta0_lowdhtmiss', r'Leading Jet $\eta$', 50, -5, 5),
+        'high_dhtmiss' : r.TH1F('ak4_eta0_highdhtmiss', r'Leading Jet $\eta$', 50, -5, 5),
+    },
+    'jet_eta1' : {
+        'low_dhtmiss' : r.TH1F('ak4_eta1_lowdhtmiss', r'Trailing Jet $\eta$', 50, -5, 5),
+        'high_dhtmiss' : r.TH1F('ak4_eta1_highdhtmiss', r'Trailing Jet $\eta$', 50, -5, 5),
+    },
+}
+
+h_jet_eta_phi = r.TH2F('ak4_eta_phi', r'Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi)
+h_jet_eta_phi0 = r.TH2F('ak4_eta_phi0', r'Leading jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi)
+h_jet_eta_phi1 = r.TH2F('ak4_eta_phi1', r'Trailing jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi)
 
 h_htmiss_bef = r.TH1F('htmiss_bef', r'H_T^{miss}', 50, 0, 500)
 h_htmiss_reb = r.TH1F('htmiss_reb', r'H_T^{miss}', 50, 0, 500)
@@ -42,8 +58,11 @@ def plot_jet_kinematics(inpath, htmiss_bef_thresh=120, deltahtmiss_thresh=80):
             continue
 
         delta_htmiss = np.abs(htmiss_bef - htmiss_reb)
+        # High deltaHTmiss vs. low deltaHTmiss
         if delta_htmiss > deltahtmiss_thresh:
-            continue
+            htype = 'high_dhtmiss'
+        else:
+            htype = 'low_dhtmiss'
 
         njets = int(ws_bef.var('njets').getValV())
 
@@ -54,16 +73,21 @@ def plot_jet_kinematics(inpath, htmiss_bef_thresh=120, deltahtmiss_thresh=80):
 
             # Leading jet
             if ijet == 0:
-                h_jet_phi0.Fill(jet_phi)
-                h_jet_eta0.Fill(jet_eta)
+                histos['jet_phi0'][htype].Fill(jet_phi)
+                histos['jet_eta0'][htype].Fill(jet_eta)
+
+                # h_jet_eta_phi0.Fill(jet_eta, jet_phi)
                 
             # Trailing jet
             elif ijet == 1:
-                h_jet_phi1.Fill(jet_phi)
-                h_jet_eta1.Fill(jet_eta)
+                histos['jet_phi1'][htype].Fill(jet_phi)
+                histos['jet_eta1'][htype].Fill(jet_eta)
 
-            h_jet_phi.Fill(jet_phi)
-            h_jet_eta.Fill(jet_eta)
+                # h_jet_eta_phi1.Fill(jet_eta, jet_phi)
+
+            # h_jet_phi.Fill(jet_phi)
+            # h_jet_eta.Fill(jet_eta)
+            # h_jet_eta_phi.Fill(jet_eta, jet_phi)
 
             h_htmiss_bef.Fill(htmiss_bef)
             h_htmiss_reb.Fill(htmiss_reb)
