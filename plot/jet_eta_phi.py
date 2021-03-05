@@ -19,7 +19,7 @@ h_jet_eta_phi1 = r.TH2F('ak4_eta_phi1', r'Trailing jet $\eta$-$\phi$', 25, -5, 5
 h_htmiss_bef = r.TH1F('htmiss_bef', r'H_T^{miss}', 50, 0, 500)
 h_htmiss_reb = r.TH1F('htmiss_reb', r'H_T^{miss}', 50, 0, 500)
 
-def plot_jet_kinematics(infiles, outtag, outf, histos, htmiss_bef_thresh=120, deltahtmiss_thresh=80):
+def plot_jet_kinematics(infiles, outtag, outf, histos, htmiss_thresh=100):
     for inpath in tqdm(infiles):
         f = r.TFile(inpath, 'READ')
         events_before = [key.GetName() for key in f.GetListOfKeys() if key.GetName().startswith('before')] 
@@ -36,15 +36,13 @@ def plot_jet_kinematics(infiles, outtag, outf, histos, htmiss_bef_thresh=120, de
             htmiss_reb = ws_reb.function('gen_htmiss_pt').getValV()
 
             # Take events statring with relatively high HTmiss
-            if htmiss_bef < htmiss_bef_thresh:
+            if htmiss_bef < htmiss_thresh:
                 continue
 
-            delta_htmiss = np.abs(htmiss_bef - htmiss_reb)
-            # High deltaHTmiss vs. low deltaHTmiss
-            if delta_htmiss > deltahtmiss_thresh:
-                htype = 'high_dhtmiss'
+            if htmiss_reb < htmiss_thresh:
+                htype = 'low_final_htmiss'
             else:
-                htype = 'low_dhtmiss'
+                htype = 'high_final_htmiss'
 
             njets = int(ws_bef.var('njets').getValV())
 
@@ -95,40 +93,40 @@ def main():
     # Histograms to be filled: For low and high delta HTmiss
     histos = {
         'jet_phi' : {
-            'low_dhtmiss' : r.TH1F('ak4_phi_lowdhtmiss', r'Jet $\phi$', 50, -np.pi, np.pi),
-            'high_dhtmiss' : r.TH1F('ak4_phi_highdhtmiss', r'Jet $\phi$', 50, -np.pi, np.pi),
+            'low_final_htmiss' : r.TH1F('ak4_phi_low_final_htmiss', r'Jet $\phi$', 50, -np.pi, np.pi),
+            'high_final_htmiss' : r.TH1F('ak4_phi_high_final_htmiss', r'Jet $\phi$', 50, -np.pi, np.pi),
         },
         'jet_phi0' : {
-            'low_dhtmiss' : r.TH1F('ak4_phi0_lowdhtmiss', r'Leading Jet $\phi$', 50, -np.pi, np.pi),
-            'high_dhtmiss' : r.TH1F('ak4_phi0_highdhtmiss', r'Leading Jet $\phi$', 50, -np.pi, np.pi),
+            'low_final_htmiss' : r.TH1F('ak4_phi0_low_final_htmiss', r'Leading Jet $\phi$', 50, -np.pi, np.pi),
+            'high_final_htmiss' : r.TH1F('ak4_phi0_high_final_htmiss', r'Leading Jet $\phi$', 50, -np.pi, np.pi),
         },
         'jet_phi1' : {
-            'low_dhtmiss' : r.TH1F('ak4_phi1_lowdhtmiss', r'Trailing Jet $\phi$', 50, -np.pi, np.pi),
-            'high_dhtmiss' : r.TH1F('ak4_phi1_highdhtmiss', r'Trailing Jet $\phi$', 50, -np.pi, np.pi),
+            'low_final_htmiss' : r.TH1F('ak4_phi1_low_final_htmiss', r'Trailing Jet $\phi$', 50, -np.pi, np.pi),
+            'high_final_htmiss' : r.TH1F('ak4_phi1_high_final_htmiss', r'Trailing Jet $\phi$', 50, -np.pi, np.pi),
         },
         'jet_eta' : {
-            'low_dhtmiss' : r.TH1F('ak4_eta_lowdhtmiss', r'Jet $\eta$', 50, -5, 5),
-            'high_dhtmiss' : r.TH1F('ak4_eta_highdhtmiss', r'Jet $\eta$', 50, -5, 5),
+            'low_final_htmiss' : r.TH1F('ak4_eta_low_final_htmiss', r'Jet $\eta$', 50, -5, 5),
+            'high_final_htmiss' : r.TH1F('ak4_eta_high_final_htmiss', r'Jet $\eta$', 50, -5, 5),
         },
         'jet_eta0' : {
-            'low_dhtmiss' : r.TH1F('ak4_eta0_lowdhtmiss', r'Leading Jet $\eta$', 50, -5, 5),
-            'high_dhtmiss' : r.TH1F('ak4_eta0_highdhtmiss', r'Leading Jet $\eta$', 50, -5, 5),
+            'low_final_htmiss' : r.TH1F('ak4_eta0_low_final_htmiss', r'Leading Jet $\eta$', 50, -5, 5),
+            'high_final_htmiss' : r.TH1F('ak4_eta0_high_final_htmiss', r'Leading Jet $\eta$', 50, -5, 5),
         },
         'jet_eta1' : {
-            'low_dhtmiss' : r.TH1F('ak4_eta1_lowdhtmiss', r'Trailing Jet $\eta$', 50, -5, 5),
-            'high_dhtmiss' : r.TH1F('ak4_eta1_highdhtmiss', r'Trailing Jet $\eta$', 50, -5, 5),
+            'low_final_htmiss' : r.TH1F('ak4_eta1_low_final_htmiss', r'Trailing Jet $\eta$', 50, -5, 5),
+            'high_final_htmiss' : r.TH1F('ak4_eta1_high_final_htmiss', r'Trailing Jet $\eta$', 50, -5, 5),
         },
         'jet_eta_phi' : {
-            'low_dhtmiss' : r.TH2F('ak4_eta_phi_lowdhtmiss', r'Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
-            'high_dhtmiss' : r.TH2F('ak4_eta_phi_highdhtmiss', r'Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
+            'low_final_htmiss' : r.TH2F('ak4_eta_phi_low_final_htmiss', r'Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
+            'high_final_htmiss' : r.TH2F('ak4_eta_phi_high_final_htmiss', r'Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
         },
         'jet_eta_phi0' : {
-            'low_dhtmiss' : r.TH2F('ak4_eta_phi0_lowdhtmiss', r'Leading Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
-            'high_dhtmiss' : r.TH2F('ak4_eta_phi0_highdhtmiss', r'Leading Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
+            'low_final_htmiss' : r.TH2F('ak4_eta_phi0_low_final_htmiss', r'Leading Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
+            'high_final_htmiss' : r.TH2F('ak4_eta_phi0_high_final_htmiss', r'Leading Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
         },
         'jet_eta_phi1' : {
-            'low_dhtmiss' : r.TH2F('ak4_eta_phi1_lowdhtmiss', r'Trailing Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
-            'high_dhtmiss' : r.TH2F('ak4_eta_phi1_highdhtmiss', r'Trailing Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
+            'low_final_htmiss' : r.TH2F('ak4_eta_phi1_low_final_htmiss', r'Trailing Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
+            'high_final_htmiss' : r.TH2F('ak4_eta_phi1_high_final_htmiss', r'Trailing Jet $\eta$-$\phi$', 25, -5, 5, 10, -np.pi, np.pi),
         },
     }
 
