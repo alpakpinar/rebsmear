@@ -94,7 +94,7 @@ def plot_htmiss_before_and_after(outdir, infile, dataset_tag='jetht', plot_gen=T
     # If we're looking at QCD and plot_gen=True, plot the GEN HTmiss distribution as well
     if dataset_tag == 'qcd' and plot_gen:
         # Coffea file to take GEN HT-miss distribution from
-        accpath = './input/qcd_QCD_HT700to1000-mg_new_pmx_2017.coffea'
+        accpath = './input/qcd_QCD_HT700to1000-mg_new_pmx_2017_nofilter.coffea'
         acc = load(accpath)
 
         distribution = 'gen_htmiss_noweight'
