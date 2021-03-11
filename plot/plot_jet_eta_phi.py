@@ -24,17 +24,26 @@ def get_xlabel(distribution):
 
     return mapping[distribution]
 
-def plot_jet_eta_phi(f, outtag, distribution, htmiss_thresh=100):
+def plot_jet_eta_phi(f, outtag, distribution, htmiss_thresh=100, plot_norm=True):
     h_lo = f[f'{distribution}_low_final_htmiss']
     h_hi = f[f'{distribution}_high_final_htmiss']
 
     fig, ax = plt.subplots()
-    hep.histplot(h_lo.values, h_lo.edges, ax=ax, label=f'$H_T^{{miss}} < {htmiss_thresh} \ GeV$ (final)')
-    hep.histplot(h_hi.values, h_hi.edges, ax=ax, label=f'$H_T^{{miss}} > {htmiss_thresh} \ GeV$ (final)')
+    # Normalize the histograms (if specified)
+    if plot_norm:
+        lo_values = h_lo.values / np.sum(h_lo.values)
+        hi_values = h_hi.values / np.sum(h_hi.values)
+    else:
+        lo_values = h_lo.values
+        hi_values = h_hi.values
+    
+    hep.histplot(lo_values, h_lo.edges, ax=ax, label=f'$H_T^{{miss}} < {htmiss_thresh} \ GeV$ (final)')
+    hep.histplot(hi_values, h_hi.edges, ax=ax, label=f'$H_T^{{miss}} > {htmiss_thresh} \ GeV$ (final)')
 
     ax.set_yscale('log')
-    ax.set_ylim(1e-2,1e4)
+    ax.set_ylim(1e-5,1e1)
     ax.set_xlabel(get_xlabel(distribution))
+    ax.set_ylabel('Normalized Counts')
     ax.legend()
 
     ax.text(0., 1., f'$H_T^{{miss}} > {htmiss_thresh}$ GeV (before reb.)',
@@ -75,7 +84,6 @@ def plot_jet_eta_phi_2d(f, outtag, distribution, htmiss_thresh=100):
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-
     
     sgn = '<' if 'low_final_htmiss' in distribution else '>'
     ax.text(0., 1., f'$H_T^{{miss}} {sgn} {htmiss_thresh}$ GeV (after reb.)',
