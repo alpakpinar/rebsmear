@@ -129,7 +129,7 @@ def run_chunk(chunk_data):
         # JER source, initiate the object and specify the JER input
         jer_evaluator = JERLookup()
         if chunk_data['constantJER'] is None:
-            jer_evaluator.from_th1("./input/jer.root","jer_data")
+            jer_evaluator.from_th1("./input/jer.root","jer_mc")
         else:
             jer_evaluator.from_constant(chunk_data['constantJER'])
         rbwsfac.set_jer_evaluator(jer_evaluator)
