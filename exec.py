@@ -10,7 +10,7 @@ import uproot
 import ROOT as r
 r.gSystem.Load('libRooFit')
 
-from numpy.lib.function_base import extract
+from array import array
 from multiprocessing import Pool
 from helpers.git import git_rev_parse, git_diff
 from rebalance import Jet, RebalanceWSFactory, JERLookup
@@ -106,6 +106,26 @@ def run_chunk(chunk_data):
     # Output ROOT file for this event chunk
     f=r.TFile(pjoin(outdir, f"ws_eventchunk_{nchunk}.root"),"RECREATE")
 
+    # Output tree to be saved
+    nJetMax = 20
+    outtree = r.TTree('Events','Events')
+    
+    njet = array('i', [0])
+    jet_pt = array('f',  [0.] * nJetMax)
+    jet_eta = array('f', [0.] * nJetMax)
+    jet_phi = array('f', [0.] * nJetMax)
+    
+    htmiss = array('f', [0.])
+    ht = array('f', [0.])
+
+    outtree.Branch('njet', njet, 'njet/I')
+    outtree.Branch('jet_pt', jet_pt, 'jet_pt[njet]/F')
+    outtree.Branch('jet_eta', jet_eta, 'jet_eta[njet]/F')
+    outtree.Branch('jet_phi', jet_phi, 'jet_phi[njet]/F')
+
+    outtree.Branch('htmiss', htmiss, 'htmiss/F')
+    outtree.Branch('ht', ht, 'ht/F')
+
     numevents = event_chunk.stop - event_chunk.start
 
     # Log file for this event chunk
@@ -137,10 +157,22 @@ def run_chunk(chunk_data):
         ws = rbwsfac.get_ws()
 
         f.cd()
-        ws.Write(f'before_{event}')
+        # ws.Write(f'before_{event}')
         m = r.RooMinimizer(ws.function("nll"))
         m.migrad()
-        ws.Write(f'rebalanced_{event}')
+        numjets = int(ws.var('njets').getValV())
+        njet[0] = numjets
+        for idx in range(numjets):
+            jet_pt[idx] = ws.var('gen_pt_{}'.format(idx)).getValV()
+            jet_eta[idx] = ws.var('reco_eta_{}'.format(idx)).getValV()
+            jet_phi[idx] = ws.var('reco_phi_{}'.format(idx)).getValV()
+
+        # ws.Write(f'rebalanced_{event}')
+
+        htmiss[0] = ws.function('gen_htmiss_pt').getValV()
+        ht[0] = ws.function('gen_ht').getValV()
+
+        outtree.Fill()
 
     with open(logf, 'a') as logfile:
         logfile.write('\n')
@@ -152,6 +184,9 @@ def run_chunk(chunk_data):
         logfile.write(f'Ran over {numevents} events\n')
         logfile.write(f'Total running time: {timeinterval:.3f} s\n')
         logfile.write(f'Running time/event: {timeinterval_per_event:.3f} s\n')
+
+    f.cd()
+    outtree.Write()
 
     return ws
 
@@ -203,13 +238,13 @@ def main():
     # Number of cores to use, for dry run it is automatically set to 1
     if not args.dry:
         ncores = args.ncores
+        p = Pool(ncores)
+    
+        res = p.map_async(run_chunk, event_chunks)
+        res.wait()
     else:
-        ncores = 1
-
-    p = Pool(ncores)
-
-    res = p.map_async(run_chunk, event_chunks)
-    res.wait()
+        for chunk in event_chunks:
+            run_chunk(chunk)
     
 if __name__ == "__main__":
     main()
